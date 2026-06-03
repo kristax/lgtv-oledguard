@@ -61,18 +61,20 @@ func startHTTPServer(cfg Config) *http.Server {
 				http.Error(w, err.Error(), 400)
 				return
 			}
-			if c.System.ServerPort == 0 {
-				c.System.ServerPort = 19999
-			}
-			if c.Camera.Width == 0 {
-				c.Camera.Width = 1280
-			}
-			if c.Camera.Height == 0 {
-				c.Camera.Height = 720
-			}
-			if c.Detection.ModelSize == 0 {
-				c.Detection.ModelSize = 640
-			}
+			// Universal zero-value guards: restore defaults for any field that came in as 0
+			d := DefaultConfig()
+			if c.Camera.Width == 0 { c.Camera.Width = d.Camera.Width }
+			if c.Camera.Height == 0 { c.Camera.Height = d.Camera.Height }
+			if c.Detection.ModelSize == 0 { c.Detection.ModelSize = d.Detection.ModelSize }
+			if c.Detection.ScoreThreshold == 0 { c.Detection.ScoreThreshold = d.Detection.ScoreThreshold }
+			if c.Detection.NMSThreshold == 0 { c.Detection.NMSThreshold = d.Detection.NMSThreshold }
+			if c.Detection.MinEyeDist == 0 { c.Detection.MinEyeDist = d.Detection.MinEyeDist }
+			if c.Detection.MinFaceSize == 0 { c.Detection.MinFaceSize = d.Detection.MinFaceSize }
+			if c.Timing.ActiveTimeoutSec == 0 { c.Timing.ActiveTimeoutSec = d.Timing.ActiveTimeoutSec }
+			if c.Timing.PassiveIntervalSec == 0 { c.Timing.PassiveIntervalSec = d.Timing.PassiveIntervalSec }
+			if c.Timing.NoFaceCycles == 0 { c.Timing.NoFaceCycles = d.Timing.NoFaceCycles }
+			if c.Timing.NoEyesCycles == 0 { c.Timing.NoEyesCycles = d.Timing.NoEyesCycles }
+			if c.System.ServerPort == 0 { c.System.ServerPort = d.System.ServerPort }
 			old := getConfig()
 			c.System.AutoStart = old.System.AutoStart
 			if err := updateConfig(c); err != nil {
@@ -284,3 +286,4 @@ func SaveConfigFile(cfg Config) error {
 	}
 	return os.Rename(tmpPath, configPath)
 }
+

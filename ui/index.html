@@ -173,10 +173,25 @@ var debugActive=false,autoOn=false;
 
 async function load(){
 const r=await fetch('/api/config');const c=await r.json();
-['device_id','width','height','model_size','score_threshold','nms_threshold','min_eye_dist','min_face_size','active_timeout_sec','passive_interval_sec','no_face_cycles','no_eyes_cycles'].forEach(id=>{const el=document.getElementById(id);if(el&&c[id]!==undefined){el.value=c[id];updateVal(id,c[id])}});
-document.getElementById('server_port').value=c.server_port||19999;
-document.getElementById('lg_tv_cmd').value=c.lg_tv_cmd||'LGTVcli.exe';
-updateAutoBtn(c.auto_start||false);
+const cam=c.camera||{};
+document.getElementById('device_id').value=cam.device_id||0;updateVal('device_id',cam.device_id||0);
+document.getElementById('width').value=cam.width||1280;updateVal('width',cam.width||1280);
+document.getElementById('height').value=cam.height||720;updateVal('height',cam.height||720);
+const det=c.detection||{};
+document.getElementById('model_size').value=det.model_size||640;updateVal('model_size',det.model_size||640);
+document.getElementById('score_threshold').value=det.score_threshold||0.5;updateVal('score_threshold',det.score_threshold||0.5);
+document.getElementById('nms_threshold').value=det.nms_threshold||0.3;updateVal('nms_threshold',det.nms_threshold||0.3);
+document.getElementById('min_eye_dist').value=det.min_eye_dist||15;updateVal('min_eye_dist',det.min_eye_dist||15);
+document.getElementById('min_face_size').value=det.min_face_size||30;updateVal('min_face_size',det.min_face_size||30);
+const tim=c.timing||{};
+document.getElementById('active_timeout_sec').value=tim.active_timeout_sec||120;updateVal('active_timeout_sec',tim.active_timeout_sec||120);
+document.getElementById('passive_interval_sec').value=tim.passive_interval_sec||2;updateVal('passive_interval_sec',tim.passive_interval_sec||2);
+document.getElementById('no_face_cycles').value=tim.no_face_cycles||5;updateVal('no_face_cycles',tim.no_face_cycles||5);
+document.getElementById('no_eyes_cycles').value=tim.no_eyes_cycles||15;updateVal('no_eyes_cycles',tim.no_eyes_cycles||15);
+const sys=c.system||{};
+document.getElementById('server_port').value=sys.server_port||19999;
+document.getElementById('lg_tv_cmd').value=sys.lg_tv_cmd||'LGTVcli.exe';
+updateAutoBtn(sys.auto_start||false);
 try{const ds=await fetch('/debug/status');const dj=await ds.json();if(!dj.active)updateDebugUI(false)}catch(e){updateDebugUI(false)}
 applyLang();
 }
@@ -184,11 +199,12 @@ applyLang();
 function updateVal(id,val){const v=document.getElementById('v_'+id);if(v)v.textContent=val}
 
 function getConfig(){
-const c={};
-['device_id','width','height','model_size','score_threshold','nms_threshold','min_eye_dist','min_face_size','active_timeout_sec','passive_interval_sec','no_face_cycles','no_eyes_cycles'].forEach(id=>{const el=document.getElementById(id);if(el)c[id]=el.type=='range'?el.valueAsNumber:parseInt(el.value)});
-c.server_port=parseInt(document.getElementById('server_port').value)||19999;
-c.lg_tv_cmd=document.getElementById('lg_tv_cmd').value||'LGTVcli.exe';
-c.auto_start=autoOn;return c;
+return{
+camera:{device_id:parseInt(document.getElementById('device_id').value)||0,width:parseInt(document.getElementById('width').value)||1280,height:parseInt(document.getElementById('height').value)||720},
+detection:{model_size:parseInt(document.getElementById('model_size').value)||640,score_threshold:parseFloat(document.getElementById('score_threshold').value)||0.5,nms_threshold:parseFloat(document.getElementById('nms_threshold').value)||0.3,min_eye_dist:parseFloat(document.getElementById('min_eye_dist').value)||15,min_face_size:parseInt(document.getElementById('min_face_size').value)||30},
+timing:{active_timeout_sec:parseInt(document.getElementById('active_timeout_sec').value)||120,passive_interval_sec:parseInt(document.getElementById('passive_interval_sec').value)||2,no_face_cycles:parseInt(document.getElementById('no_face_cycles').value)||5,no_eyes_cycles:parseInt(document.getElementById('no_eyes_cycles').value)||15,camera_warmup_frames:5},
+system:{auto_start:autoOn,server_port:parseInt(document.getElementById('server_port').value)||19999,lg_tv_cmd:document.getElementById('lg_tv_cmd').value||'LGTVcli.exe'}
+};
 }
 async function saveConfig(){await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(getConfig())});alert(t('btn_save')+' OK')}
 
@@ -228,5 +244,7 @@ load();
 </script>
 </body>
 </html>
+
+
 
 
