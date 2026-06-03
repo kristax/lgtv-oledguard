@@ -6,12 +6,12 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,Segoe UI,sans-serif;background:#1a1a2e;color:#e0e0e0;display:flex;min-height:100vh}
-nav{width:380px;background:#16213e;padding:20px;overflow-y:auto;flex-shrink:0}
+nav{width:380px;background:#16213e;display:flex;flex-direction:column;height:100vh;flex-shrink:0;overflow:hidden}
 nav .lang-bar{display:flex;gap:8px;margin-bottom:16px}
 nav .lang-bar button{padding:4px 12px;border:1px solid #444;background:transparent;color:#888;border-radius:4px;cursor:pointer;font-size:12px}
 nav .lang-bar button.active{background:#4ecca3;color:#1a1a2e;border-color:#4ecca3}
 nav h2{font-size:13px;color:#888;text-transform:uppercase;margin:18px 0 6px;letter-spacing:1px;border-bottom:1px solid #222;padding-bottom:4px}
-nav h2:first-of-type{margin-top:0}
+nav .params-scroll h2:first-of-type{margin-top:0}
 nav label{display:block;font-size:13px;color:#ccc;margin:10px 0 2px}
 nav label .desc{display:block;font-size:11px;color:#666;font-weight:normal;margin-top:1px}
 nav .val{font-size:12px;color:#4ecca3;margin-left:8px}
@@ -34,11 +34,12 @@ main .close-btn.visible{display:flex}
 .status-bar .item b{color:#ccc}
 .status-bar .item.true b{color:#4ecca3}
 .status-bar .item.warn b{color:#f39c12}
-</style>
+nav .params-scroll{flex:1;overflow-y:auto;padding:20px 20px 0 20px}
+nav .btn-bar{flex-shrink:0;padding:10px 20px 16px 20px;background:#16213e;border-top:1px solid #222}</style>
 </head>
 <body>
 <nav>
-  <div class="lang-bar">
+  <div class="params-scroll"><div class="lang-bar">
     <button class="active" onclick="setLang('zh')">中文</button>
     <button onclick="setLang('en')">English</button>
   </div>
@@ -79,10 +80,10 @@ main .close-btn.visible{display:flex}
   <label><span data-t="lbl_lgtv_cmd"></span><span class="desc" data-t="desc_lgtv_cmd"></span></label>
   <input type="text" id="lg_tv_cmd" value="LGTVcli.exe">
 
-  <button class="action btn-save" onclick="saveConfig()" data-t="btn_save"></button>
+  </div><div class="btn-bar"><button class="action btn-save" onclick="saveConfig()" data-t="btn_save"></button>
   <button class="action btn-off" onclick="screenOff()" data-t="btn_screen_off"></button>
   <button class="action btn-auto" id="btn_auto" onclick="toggleAutoStart()"></button>
-  <button class="action btn-debug off" id="btn_debug" onclick="toggleDebug()"></button>
+  <button class="action btn-debug off" id="btn_debug" onclick="toggleDebug()"></div></button>
 </nav>
 <main>
   <div class="stream-wrap">
@@ -168,23 +169,23 @@ b.classList.toggle('active',(b.textContent.trim()===t('lang_zh')&&lang==='zh')||
 
 // === Config ===
 var debugActive=false,autoOn=false;
-const sliders=['device_id','width','height','model_size','score_threshold','nms_threshold','min_eye_dist','min_face_size','active_timeout_sec','passive_interval_sec','no_face_cycles','no_eyes_cycles'];
+// sliders kept for value displays only
 
 async function load(){
 const r=await fetch('/api/config');const c=await r.json();
-sliders.forEach(id=>{const el=document.getElementById(id);if(el&&c[id]!==undefined){el.value=c[id];updateVal(id,c[id])}});
+['device_id','width','height','model_size','score_threshold','nms_threshold','min_eye_dist','min_face_size','active_timeout_sec','passive_interval_sec','no_face_cycles','no_eyes_cycles'].forEach(id=>{const el=document.getElementById(id);if(el&&c[id]!==undefined){el.value=c[id];updateVal(id,c[id])}});
 document.getElementById('server_port').value=c.server_port||19999;
 document.getElementById('lg_tv_cmd').value=c.lg_tv_cmd||'LGTVcli.exe';
 updateAutoBtn(c.auto_start||false);
 try{const ds=await fetch('/debug/status');const dj=await ds.json();if(!dj.active)updateDebugUI(false)}catch(e){updateDebugUI(false)}
 applyLang();
 }
-sliders.forEach(id=>{const el=document.getElementById(id);if(el)el.oninput=()=>updateVal(id,el.value)});
+['device_id','width','height','model_size','score_threshold','nms_threshold','min_eye_dist','min_face_size','active_timeout_sec','passive_interval_sec','no_face_cycles','no_eyes_cycles'].forEach(id=>{const el=document.getElementById(id);if(el)el.oninput=()=>updateVal(id,el.value)});
 function updateVal(id,val){const v=document.getElementById('v_'+id);if(v)v.textContent=val}
 
 function getConfig(){
 const c={};
-sliders.forEach(id=>{const el=document.getElementById(id);if(el)c[id]=el.type=='range'?el.valueAsNumber:parseInt(el.value)});
+['device_id','width','height','model_size','score_threshold','nms_threshold','min_eye_dist','min_face_size','active_timeout_sec','passive_interval_sec','no_face_cycles','no_eyes_cycles'].forEach(id=>{const el=document.getElementById(id);if(el)c[id]=el.type=='range'?el.valueAsNumber:parseInt(el.value)});
 c.server_port=parseInt(document.getElementById('server_port').value)||19999;
 c.lg_tv_cmd=document.getElementById('lg_tv_cmd').value||'LGTVcli.exe';
 c.auto_start=autoOn;return c;
@@ -227,3 +228,5 @@ load();
 </script>
 </body>
 </html>
+
+

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"sync/atomic"
 )
 
@@ -13,19 +14,19 @@ type CameraConfig struct {
 }
 
 type DetectionConfig struct {
-	ModelSize       int     `json:"model_size"`
-	ScoreThreshold  float32 `json:"score_threshold"`
-	NMSThreshold    float32 `json:"nms_threshold"`
-	MinEyeDist      float64 `json:"min_eye_dist"`
-	MinFaceSize     int     `json:"min_face_size"`
+	ModelSize      int     `json:"model_size"`
+	ScoreThreshold float32 `json:"score_threshold"`
+	NMSThreshold   float32 `json:"nms_threshold"`
+	MinEyeDist     float64 `json:"min_eye_dist"`
+	MinFaceSize    int     `json:"min_face_size"`
 }
 
 type TimingConfig struct {
-	ActiveTimeoutSec    int `json:"active_timeout_sec"`
-	PassiveIntervalSec  int `json:"passive_interval_sec"`
-	NoFaceCycles        int `json:"no_face_cycles"`
-	NoEyesCycles        int `json:"no_eyes_cycles"`
-	CameraWarmupFrames  int `json:"camera_warmup_frames"`
+	ActiveTimeoutSec   int `json:"active_timeout_sec"`
+	PassiveIntervalSec int `json:"passive_interval_sec"`
+	NoFaceCycles       int `json:"no_face_cycles"`
+	NoEyesCycles       int `json:"no_eyes_cycles"`
+	CameraWarmupFrames int `json:"camera_warmup_frames"`
 }
 
 type SystemConfig struct {
@@ -90,7 +91,7 @@ func LoadConfigFile(path string) (Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return cfg, SaveConfigFile(cfg) // create default
+			return cfg, SaveConfigFile(cfg)
 		}
 		return cfg, err
 	}
@@ -102,14 +103,10 @@ func LoadConfigFile(path string) (Config, error) {
 
 func SaveConfigFile(cfg Config) error {
 	execPath, _ := os.Executable()
-	// If execPath is empty (e.g., go run), use config.json in CWD
-	configDir := "."
-	if execPath != "" {
-		configDir = execPath[:len(execPath)-len("gocv.exe")]
-	}
+	configDir := filepath.Dir(execPath)
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(configDir+"config.json", data, 0644)
+	return os.WriteFile(filepath.Join(configDir, "config.json"), data, 0644)
 }
