@@ -6,14 +6,18 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,Segoe UI,sans-serif;background:#1a1a2e;color:#e0e0e0;display:flex;min-height:100vh}
-nav{width:360px;background:#16213e;padding:20px;overflow-y:auto;flex-shrink:0}
-nav h2{font-size:14px;color:#888;text-transform:uppercase;margin:20px 0 8px;letter-spacing:1px}
-nav h2:first-child{margin-top:0}
-nav label{display:block;font-size:13px;color:#aaa;margin:8px 0 4px}
-nav input[type=range]{width:100%}
-nav input[type=number],nav input[type=text]{width:100%;padding:6px 8px;background:#0f3460;border:1px solid #333;color:#e0e0e0;border-radius:4px;font-size:13px}
+nav{width:380px;background:#16213e;padding:20px;overflow-y:auto;flex-shrink:0}
+nav .lang-bar{display:flex;gap:8px;margin-bottom:16px}
+nav .lang-bar button{padding:4px 12px;border:1px solid #444;background:transparent;color:#888;border-radius:4px;cursor:pointer;font-size:12px}
+nav .lang-bar button.active{background:#4ecca3;color:#1a1a2e;border-color:#4ecca3}
+nav h2{font-size:13px;color:#888;text-transform:uppercase;margin:18px 0 6px;letter-spacing:1px;border-bottom:1px solid #222;padding-bottom:4px}
+nav h2:first-of-type{margin-top:0}
+nav label{display:block;font-size:13px;color:#ccc;margin:10px 0 2px}
+nav label .desc{display:block;font-size:11px;color:#666;font-weight:normal;margin-top:1px}
 nav .val{font-size:12px;color:#4ecca3;margin-left:8px}
-nav button{width:100%;padding:10px;margin:6px 0;border:none;border-radius:6px;cursor:pointer;font-size:14px}
+nav input[type=range]{width:100%;margin-top:2px}
+nav input[type=number],nav input[type=text]{width:100%;padding:6px 8px;background:#0f3460;border:1px solid #333;color:#e0e0e0;border-radius:4px;font-size:13px}
+nav button.action{width:100%;padding:10px;margin:6px 0;border:none;border-radius:6px;cursor:pointer;font-size:14px}
 .btn-save{background:#4ecca3;color:#1a1a2e}
 .btn-debug{background:#e94560;color:#fff}
 .btn-debug.off{background:#555;color:#999}
@@ -22,55 +26,63 @@ nav button{width:100%;padding:10px;margin:6px 0;border:none;border-radius:6px;cu
 .btn-auto.off{background:#555;color:#999}
 main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f0f23;position:relative}
 main .stream-wrap{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-main img{max-width:100%;max-height:calc(100vh - 40px)}
+main img{max-width:100%;max-height:calc(100vh - 50px)}
 main .close-btn{position:absolute;top:10px;right:10px;width:36px;height:36px;background:rgba(0,0,0,0.7);border:none;color:#fff;font-size:20px;border-radius:50%;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1}
 main .close-btn.visible{display:flex}
-.status-bar{position:fixed;bottom:0;left:360px;right:0;background:#16213e;padding:8px 16px;font-size:12px;display:flex;gap:20px}
-.status-bar span{color:#888}.status-bar .active{color:#4ecca3}
+.status-bar{position:fixed;bottom:0;left:380px;right:0;background:#16213e;padding:8px 16px;font-size:12px;display:flex;gap:24px;flex-wrap:wrap}
+.status-bar .item{color:#888}
+.status-bar .item b{color:#ccc}
+.status-bar .item.true b{color:#4ecca3}
+.status-bar .item.warn b{color:#f39c12}
 </style>
 </head>
 <body>
 <nav>
-  <h2>Camera</h2>
-  <label>Device ID <span class="val" id="v_device_id">0</span></label>
+  <div class="lang-bar">
+    <button class="active" onclick="setLang('zh')">中文</button>
+    <button onclick="setLang('en')">English</button>
+  </div>
+
+  <h2 data-t="sec_camera"></h2>
+  <label><span data-t="lbl_device_id"></span> <span class="val" id="v_device_id">0</span><span class="desc" data-t="desc_device_id"></span></label>
   <input type="number" id="device_id" value="0" min="0" max="5">
-  <label>Capture Width <span class="val" id="v_width">1280</span></label>
+  <label><span data-t="lbl_width"></span> <span class="val" id="v_width">1280</span><span class="desc" data-t="desc_width"></span></label>
   <input type="range" id="width" value="1280" min="320" max="1920" step="80">
-  <label>Capture Height <span class="val" id="v_height">720</span></label>
+  <label><span data-t="lbl_height"></span> <span class="val" id="v_height">720</span><span class="desc" data-t="desc_height"></span></label>
   <input type="range" id="height" value="720" min="240" max="1080" step="60">
 
-  <h2>Detection</h2>
-  <label>Model Size <span class="val" id="v_model_size">640</span></label>
+  <h2 data-t="sec_detection"></h2>
+  <label><span data-t="lbl_model_size"></span> <span class="val" id="v_model_size">640</span><span class="desc" data-t="desc_model_size"></span></label>
   <input type="range" id="model_size" value="640" min="320" max="1280" step="160">
-  <label>Score Threshold <span class="val" id="v_score_threshold">0.5</span></label>
+  <label><span data-t="lbl_score_threshold"></span> <span class="val" id="v_score_threshold">0.5</span><span class="desc" data-t="desc_score_threshold"></span></label>
   <input type="range" id="score_threshold" value="0.5" min="0.1" max="0.9" step="0.05">
-  <label>NMS Threshold <span class="val" id="v_nms_threshold">0.3</span></label>
+  <label><span data-t="lbl_nms_threshold"></span> <span class="val" id="v_nms_threshold">0.3</span><span class="desc" data-t="desc_nms_threshold"></span></label>
   <input type="range" id="nms_threshold" value="0.3" min="0.1" max="0.9" step="0.05">
-  <label>Min Eye Distance <span class="val" id="v_min_eye_dist">15</span></label>
+  <label><span data-t="lbl_min_eye_dist"></span> <span class="val" id="v_min_eye_dist">15</span><span class="desc" data-t="desc_min_eye_dist"></span></label>
   <input type="range" id="min_eye_dist" value="15" min="5" max="50" step="1">
-  <label>Min Face Size <span class="val" id="v_min_face_size">30</span></label>
+  <label><span data-t="lbl_min_face_size"></span> <span class="val" id="v_min_face_size">30</span><span class="desc" data-t="desc_min_face_size"></span></label>
   <input type="range" id="min_face_size" value="30" min="10" max="100" step="5">
 
-  <h2>Timing</h2>
-  <label>Active Timeout (s) <span class="val" id="v_active_timeout_sec">120</span></label>
+  <h2 data-t="sec_timing"></h2>
+  <label><span data-t="lbl_active_timeout"></span> <span class="val" id="v_active_timeout_sec">120</span><span class="desc" data-t="desc_active_timeout"></span></label>
   <input type="range" id="active_timeout_sec" value="120" min="30" max="600" step="10">
-  <label>Passive Interval (s) <span class="val" id="v_passive_interval_sec">2</span></label>
+  <label><span data-t="lbl_passive_interval"></span> <span class="val" id="v_passive_interval_sec">2</span><span class="desc" data-t="desc_passive_interval"></span></label>
   <input type="range" id="passive_interval_sec" value="2" min="1" max="10" step="1">
-  <label>No-Face Cycles <span class="val" id="v_no_face_cycles">5</span></label>
+  <label><span data-t="lbl_no_face_cycles"></span> <span class="val" id="v_no_face_cycles">5</span><span class="desc" data-t="desc_no_face_cycles"></span></label>
   <input type="range" id="no_face_cycles" value="5" min="2" max="30" step="1">
-  <label>No-Eyes Cycles <span class="val" id="v_no_eyes_cycles">15</span></label>
+  <label><span data-t="lbl_no_eyes_cycles"></span> <span class="val" id="v_no_eyes_cycles">15</span><span class="desc" data-t="desc_no_eyes_cycles"></span></label>
   <input type="range" id="no_eyes_cycles" value="15" min="5" max="60" step="1">
 
-  <h2>System</h2>
-  <label>Server Port</label>
+  <h2 data-t="sec_system"></h2>
+  <label><span data-t="lbl_server_port"></span><span class="desc" data-t="desc_server_port"></span></label>
   <input type="number" id="server_port" value="19999" min="1024" max="65535">
-  <label>LGTV CLI</label>
+  <label><span data-t="lbl_lgtv_cmd"></span><span class="desc" data-t="desc_lgtv_cmd"></span></label>
   <input type="text" id="lg_tv_cmd" value="LGTVcli.exe">
 
-  <button class="btn-save" onclick="saveConfig()">Save Configuration</button>
-  <button class="btn-off" onclick="screenOff()">Turn Off Screen Now</button>
-  <button class="btn-auto" id="btn_auto" onclick="toggleAutoStart()">Auto-Start: ?</button>
-  <button class="btn-debug off" id="btn_debug" onclick="toggleDebug()">Start Debug Preview</button>
+  <button class="action btn-save" onclick="saveConfig()" data-t="btn_save"></button>
+  <button class="action btn-off" onclick="screenOff()" data-t="btn_screen_off"></button>
+  <button class="action btn-auto" id="btn_auto" onclick="toggleAutoStart()"></button>
+  <button class="action btn-debug off" id="btn_debug" onclick="toggleDebug()"></button>
 </nav>
 <main>
   <div class="stream-wrap">
@@ -79,117 +91,138 @@ main .close-btn.visible{display:flex}
   </div>
 </main>
 <div class="status-bar">
-  <span id="st_face">Face: --</span>
-  <span id="st_eyes">Eyes: --</span>
-  <span id="st_state">State: --</span>
-  <span id="st_no_face">NoFace: --</span>
-  <span id="st_no_eyes">NoEyes: --</span>
+  <span class="item" id="st_face"></span>
+  <span class="item" id="st_eyes"></span>
+  <span class="item" id="st_state"></span>
+  <span class="item" id="st_idle"></span>
+  <span class="item" id="st_no_face"></span>
+  <span class="item" id="st_no_eyes"></span>
 </div>
 <script>
-var debugActive = false;
+// === i18n ===
+const T={
+zh:{
+sec_camera:"摄像头",sec_detection:"检测参数",sec_timing:"时间策略",sec_system:"系统",
+lbl_device_id:"设备 ID",desc_device_id:"要使用的摄像头索引，0 表示第一个摄像头",
+lbl_width:"采集宽度",desc_width:"摄像头采集分辨率宽度（像素）。越高越清晰，但 CPU 负载越大",
+lbl_height:"采集高度",desc_height:"摄像头采集分辨率高度（像素）",
+lbl_model_size:"模型尺寸",desc_model_size:"YuNet DNN 内部推理尺寸。320=快速, 640=平衡, 1280=最高精度但更慢",
+lbl_score_threshold:"置信度阈值",desc_score_threshold:"人脸检测的最低置信度。越低越容易检测到人脸（但可能误检），越高越严格",
+lbl_nms_threshold:"NMS 阈值",desc_nms_threshold:"非极大值抑制阈值。控制重叠人脸框的合并程度，越高保留越多框",
+lbl_min_eye_dist:"最小眼距",desc_min_eye_dist:"判定\"眼睛可见\"的最小双眼关键点距离（像素）。低于此值判定为未看向屏幕",
+lbl_min_face_size:"最小人脸尺寸",desc_min_face_size:"忽略小于此尺寸（像素）的人脸检测结果，用于过滤背景噪声",
+lbl_active_timeout:"活跃超时(s)",desc_active_timeout:"无鼠标键盘操作多少秒后启动摄像头检测。正常使用电脑时摄像头休眠，省 CPU",
+lbl_passive_interval:"被动检测间隔(s)",desc_passive_interval:"摄像头模式下每次检测的间隔秒数。越小越灵敏，但 CPU 占用更高",
+lbl_no_face_cycles:"无人脸周期数",desc_no_face_cycles:"连续多少次检测不到人脸后判定为\"已离开\"，触发关屏。×间隔 = 实际秒数",
+lbl_no_eyes_cycles:"无眼睛周期数",desc_no_eyes_cycles:"连续多少次检测到人脸但无眼睛后判定为\"未看屏幕\"（如看手机），触发关屏",
+lbl_server_port:"HTTP 端口",desc_server_port:"Web 管理界面的监听端口。修改后需重启程序生效",
+lbl_lgtv_cmd:"LGTV 命令",desc_lgtv_cmd:"控制显示器的命令行工具路径。程序通过它来开关屏幕",
+btn_save:"保存配置",btn_screen_off:"立即关闭屏幕",
+btn_auto_on:"开机自启: 开",btn_auto_off:"开机自启: 关",
+btn_debug_start:"开启调试预览",btn_debug_stop:"关闭调试预览",
+st_face:"人脸",st_eyes:"眼睛",st_state:"状态",st_idle:"空闲",st_no_face:"无人脸计数",st_no_eyes:"无眼睛计数",
+active:"活跃 (摄像头休眠)",passive:"被动检测中",screen_off:"屏幕已关闭",
+lang_zh:"中文",lang_en:"English"
+},
+en:{
+sec_camera:"Camera",sec_detection:"Detection",sec_timing:"Timing",sec_system:"System",
+lbl_device_id:"Device ID",desc_device_id:"Camera device index, 0 for first camera",
+lbl_width:"Capture Width",desc_width:"Capture resolution width (px). Higher = clearer but more CPU",
+lbl_height:"Capture Height",desc_height:"Capture resolution height (px)",
+lbl_model_size:"Model Size",desc_model_size:"YuNet DNN internal inference size. 320=fast, 640=balanced, 1280=max accuracy",
+lbl_score_threshold:"Score Threshold",desc_score_threshold:"Minimum confidence for face detection. Lower = more detections (more false positives)",
+lbl_nms_threshold:"NMS Threshold",desc_nms_threshold:"Non-maximum suppression threshold. Higher keeps more overlapping face boxes",
+lbl_min_eye_dist:"Min Eye Distance",desc_min_eye_dist:"Minimum eye landmark distance (px) to consider eyes visible. Below = looking away",
+lbl_min_face_size:"Min Face Size",desc_min_face_size:"Ignore face detections smaller than this (px). Filters background noise",
+lbl_active_timeout:"Active Timeout (s)",desc_active_timeout:"Seconds without mouse/keyboard before camera activates. Camera sleeps during normal use",
+lbl_passive_interval:"Passive Interval (s)",desc_passive_interval:"Detection interval in camera mode. Lower = more responsive, higher CPU",
+lbl_no_face_cycles:"No-Face Cycles",desc_no_face_cycles:"Consecutive no-face detections to confirm absence. × interval = actual seconds",
+lbl_no_eyes_cycles:"No-Eyes Cycles",desc_no_eyes_cycles:"Consecutive face-but-no-eyes detections to confirm not watching. × interval = actual seconds",
+lbl_server_port:"HTTP Port",desc_server_port:"Web management interface port. Requires restart to apply",
+lbl_lgtv_cmd:"LGTV Command",desc_lgtv_cmd:"Display control CLI tool path. Used to turn screen on/off",
+btn_save:"Save Config",btn_screen_off:"Turn Off Screen Now",
+btn_auto_on:"Auto-Start: ON",btn_auto_off:"Auto-Start: OFF",
+btn_debug_start:"Start Debug",btn_debug_stop:"Stop Debug",
+st_face:"Face",st_eyes:"Eyes",st_state:"State",st_idle:"Idle",st_no_face:"NoFace",st_no_eyes:"NoEyes",
+active:"Active (camera asleep)",passive:"Passive detection",screen_off:"Screen OFF",
+lang_zh:"中文",lang_en:"English"
+}};
+
+let lang=localStorage.getItem('lang')||'zh';
+function t(k){return T[lang][k]||k}
+function setLang(l){
+lang=l;localStorage.setItem('lang',l);
+document.documentElement.lang=l;
+document.querySelectorAll('[data-t]').forEach(el=>{el.textContent=t(el.dataset.t)});
+document.querySelectorAll('.lang-bar button').forEach(b=>b.classList.remove('active'));
+event.target.classList.add('active');
+updateDebugUI(debugActive);
+updateAutoBtn(autoOn);
+}
+function applyLang(){
+document.querySelectorAll('[data-t]').forEach(el=>{el.textContent=t(el.dataset.t)});
+document.querySelectorAll('.lang-bar button').forEach(b=>{
+b.classList.toggle('active',(b.textContent.trim()===t('lang_zh')&&lang==='zh')||(b.textContent.trim()===t('lang_en')&&lang==='en'));
+});
+}
+
+// === Config ===
+var debugActive=false,autoOn=false;
 const sliders=['device_id','width','height','model_size','score_threshold','nms_threshold','min_eye_dist','min_face_size','active_timeout_sec','passive_interval_sec','no_face_cycles','no_eyes_cycles'];
 
 async function load(){
-  const r=await fetch('/api/config');
-  const c=await r.json();
-  sliders.forEach(id=>{
-    const el=document.getElementById(id);
-    if(el&&c[id]!==undefined){el.value=c[id];updateVal(id,c[id])}
-  });
-  document.getElementById('server_port').value=c.server_port||19999;
-  document.getElementById('lg_tv_cmd').value=c.lg_tv_cmd||'LGTVcli.exe';
-  updateAutoBtn(c.auto_start||false);
-
-  // Check debug state from server (recover from refresh)
-  try{
-    const ds=await fetch('/debug/status');
-    const dj=await ds.json();
-    if(!dj.active) updateDebugUI(false);
-  }catch(e){updateDebugUI(false);}
+const r=await fetch('/api/config');const c=await r.json();
+sliders.forEach(id=>{const el=document.getElementById(id);if(el&&c[id]!==undefined){el.value=c[id];updateVal(id,c[id])}});
+document.getElementById('server_port').value=c.server_port||19999;
+document.getElementById('lg_tv_cmd').value=c.lg_tv_cmd||'LGTVcli.exe';
+updateAutoBtn(c.auto_start||false);
+try{const ds=await fetch('/debug/status');const dj=await ds.json();if(!dj.active)updateDebugUI(false)}catch(e){updateDebugUI(false)}
+applyLang();
 }
-
-sliders.forEach(id=>{
-  const el=document.getElementById(id);
-  if(el)el.oninput=()=>updateVal(id,el.value);
-});
-
-function updateVal(id,val){
-  const v=document.getElementById('v_'+id);
-  if(v)v.textContent=val;
-}
+sliders.forEach(id=>{const el=document.getElementById(id);if(el)el.oninput=()=>updateVal(id,el.value)});
+function updateVal(id,val){const v=document.getElementById('v_'+id);if(v)v.textContent=val}
 
 function getConfig(){
-  const c={};
-  sliders.forEach(id=>{const el=document.getElementById(id);if(el)c[id]=el.type=='range'?el.valueAsNumber:parseInt(el.value)});
-  c.server_port=parseInt(document.getElementById('server_port').value)||19999;
-  c.lg_tv_cmd=document.getElementById('lg_tv_cmd').value||'LGTVcli.exe';
-  c.auto_start=document.getElementById('btn_auto').textContent.includes('ON');
-  return c;
+const c={};
+sliders.forEach(id=>{const el=document.getElementById(id);if(el)c[id]=el.type=='range'?el.valueAsNumber:parseInt(el.value)});
+c.server_port=parseInt(document.getElementById('server_port').value)||19999;
+c.lg_tv_cmd=document.getElementById('lg_tv_cmd').value||'LGTVcli.exe';
+c.auto_start=autoOn;return c;
 }
-
-async function saveConfig(){
-  await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(getConfig())});
-  alert('Saved.');
-}
+async function saveConfig(){await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(getConfig())});alert(t('btn_save')+' OK')}
 
 function updateDebugUI(active){
-  debugActive=active;
-  const b=document.getElementById('btn_debug');
-  const c=document.getElementById('close_btn');
-  if(active){
-    b.textContent='Stop Debug Preview';
-    b.className='btn-debug';
-    c.className='close-btn visible';
-  }else{
-    b.textContent='Start Debug Preview';
-    b.className='btn-debug off';
-    c.className='close-btn';
-    document.getElementById('stream').src='';
-  }
+debugActive=active;
+const b=document.getElementById('btn_debug'),c=document.getElementById('close_btn');
+b.textContent=active?t('btn_debug_stop'):t('btn_debug_start');
+b.className='action btn-debug'+(active?'':' off');
+c.className='close-btn'+(active?' visible':'');
+if(!active)document.getElementById('stream').src='';
 }
-
-function toggleDebug(){
-  if(debugActive){
-    stopDebug();
-  }else{
-    startDebug();
-  }
-}
-
-async function startDebug(){
-  document.getElementById('stream').src='/debug/stream';
-  updateDebugUI(true);
-}
-
-async function stopDebug(){
-  await fetch('/debug/stop',{method:'POST'});
-  updateDebugUI(false);
-}
-
-async function screenOff(){await fetch('/api/screen/off',{method:'POST'});}
+function toggleDebug(){debugActive?stopDebug():startDebug()}
+async function startDebug(){document.getElementById('stream').src='/debug/stream';updateDebugUI(true)}
+async function stopDebug(){await fetch('/debug/stop',{method:'POST'});updateDebugUI(false)}
+async function screenOff(){await fetch('/api/screen/off',{method:'POST'})}
 
 async function toggleAutoStart(){
-  const r=await fetch('/api/autostart',{method:'POST'});
-  const j=await r.json();
-  updateAutoBtn(j.enabled);
+const r=await fetch('/api/autostart',{method:'POST'});const j=await r.json();updateAutoBtn(j.enabled)
 }
-
 function updateAutoBtn(on){
-  const b=document.getElementById('btn_auto');
-  b.textContent='Auto-Start: '+(on?'ON':'OFF');
-  b.className='btn-auto'+(on?'':' off');
+autoOn=on;
+const b=document.getElementById('btn_auto');b.textContent=on?t('btn_auto_on'):t('btn_auto_off');b.className='action btn-auto'+(on?'':' off')
 }
 
 setInterval(async()=>{
-  try{const r=await fetch('/api/status');const s=await r.json();
-    document.getElementById('st_face').innerHTML='Face: <b>'+s.face+'</b>';
-    document.getElementById('st_eyes').innerHTML='Eyes: <b>'+s.eyes+'</b>';
-    document.getElementById('st_state').innerHTML='State: <b>'+s.state+'</b>';
-    document.getElementById('st_no_face').innerHTML='NoFace: '+s.no_face_count;
-    document.getElementById('st_no_eyes').innerHTML='NoEyes: '+s.no_eyes_count;
-  }catch(e){}
+try{const r=await fetch('/api/status');const s=await r.json();
+const f=document.getElementById('st_face');f.textContent=t('st_face')+': '+(s.face==='true'?'YES':'no');f.className='item'+(s.face==='true'?' true':'');
+const e=document.getElementById('st_eyes');e.textContent=t('st_eyes')+': '+(s.eyes==='true'?'YES':'no');e.className='item'+(s.eyes==='true'?' true':'');
+document.getElementById('st_state').innerHTML=t('st_state')+': <b>'+t(s.state)+'</b>';
+const idle=s.idle_sec||0;
+document.getElementById('st_idle').innerHTML=t('st_idle')+': <b>'+idle+'s</b>';
+document.getElementById('st_no_face').textContent=t('st_no_face')+': '+s.no_face_count;
+document.getElementById('st_no_eyes').textContent=t('st_no_eyes')+': '+s.no_eyes_count;
+}catch(e){}
 },2000);
-
 load();
 </script>
 </body>

@@ -29,6 +29,7 @@ var (
 		state       string
 		noFaceCount int
 		noEyesCount int
+		idleSec     int64
 	}
 )
 
@@ -103,6 +104,7 @@ func startHTTPServer(cfg Config) *http.Server {
 			"state":         status.state,
 			"no_face_count": status.noFaceCount,
 			"no_eyes_count": status.noEyesCount,
+			"idle_sec":      status.idleSec,
 		})
 	})
 
@@ -117,7 +119,7 @@ func startHTTPServer(cfg Config) *http.Server {
 	return srv
 }
 
-func updateStatus(faceFound, eyesFound bool, state string, noFaceCount, noEyesCount int) {
+func updateStatus(faceFound, eyesFound bool, state string, noFaceCount, noEyesCount int, idleSec int64) {
 	status.mu.Lock()
 	defer status.mu.Unlock()
 	status.faceFound = faceFound
@@ -125,6 +127,7 @@ func updateStatus(faceFound, eyesFound bool, state string, noFaceCount, noEyesCo
 	status.state = state
 	status.noFaceCount = noFaceCount
 	status.noEyesCount = noEyesCount
+	status.idleSec = idleSec
 }
 
 func handleDebugStop(w http.ResponseWriter, r *http.Request) {
@@ -157,7 +160,6 @@ func handleDebugStream(w http.ResponseWriter, r *http.Request) {
 	debugStreamActive = true
 	debugStreamMu.Unlock()
 
-	// Clear any stale stop signal
 	select {
 	case <-debugStopCh:
 	default:
@@ -185,7 +187,6 @@ func handleDebugStream(w http.ResponseWriter, r *http.Request) {
 	defer frame.Close()
 
 	for {
-		// Check for explicit stop signal
 		select {
 		case <-debugStopCh:
 			return
@@ -235,3 +236,4 @@ func requestScreenOff() {
 	default:
 	}
 }
+

@@ -78,7 +78,7 @@ func main() {
 	// Init state
 	screenOn.Store(true)
 	lastActivity.Store(time.Now().Unix())
-	updateStatus(false, false, "active", 0, 0)
+	updateStatus(false, false, "active", 0, 0, 0)
 
 	// Mouse/Keyboard hooks
 	go func() {
@@ -156,7 +156,7 @@ func main() {
 					webcam = nil
 					passive = false
 				}
-				updateStatus(false, false, "screen_off", 0, 0)
+				updateStatus(false, false, "screen_off", 0, 0, 0)
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}
@@ -201,14 +201,14 @@ func main() {
 				if !passive {
 					stateStr = "active"
 				}
-				updateStatus(face, eyes, stateStr, noFaceC, noEyesC)
+				updateStatus(face, eyes, stateStr, noFaceC, noEyesC, idle)
 
 				time.Sleep(time.Duration(cfg.Timing.PassiveIntervalSec) * time.Second)
 				continue
 			}
 
 			// Active mode: just update status
-			updateStatus(false, false, "active", 0, 0)
+			updateStatus(false, false, "active", 0, 0, 0)
 			time.Sleep(1 * time.Second)
 		}
 	}()
@@ -219,3 +219,5 @@ func main() {
 	<-sigChan
 	infoLogger.Println("shutting down")
 }
+
+
