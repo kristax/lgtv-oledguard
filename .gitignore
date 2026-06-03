@@ -1,0 +1,8 @@
+# Binary
+gocv.exe
+
+# IDE
+.idea/
+
+# Unused model (crashes with OpenCV 4.10)
+face_detection_yunet_2026may.onnx
