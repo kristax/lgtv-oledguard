@@ -1,0 +1,26 @@
+{
+  "camera": {
+    "device_id": 0,
+    "width": 1280,
+    "height": 720
+  },
+  "detection": {
+    "model_size": 640,
+    "score_threshold": 0.5,
+    "nms_threshold": 0.3,
+    "min_eye_dist": 15,
+    "min_face_size": 30
+  },
+  "timing": {
+    "active_timeout_sec": 120,
+    "passive_interval_sec": 2,
+    "no_face_cycles": 5,
+    "no_eyes_cycles": 15,
+    "camera_warmup_frames": 5
+  },
+  "system": {
+    "auto_start": false,
+    "server_port": 19999,
+    "lg_tv_cmd": "LGTVcli.exe"
+  }
+}

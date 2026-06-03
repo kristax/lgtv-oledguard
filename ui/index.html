@@ -1,0 +1,196 @@
+﻿<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Presence Detector</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,Segoe UI,sans-serif;background:#1a1a2e;color:#e0e0e0;display:flex;min-height:100vh}
+nav{width:360px;background:#16213e;padding:20px;overflow-y:auto;flex-shrink:0}
+nav h2{font-size:14px;color:#888;text-transform:uppercase;margin:20px 0 8px;letter-spacing:1px}
+nav h2:first-child{margin-top:0}
+nav label{display:block;font-size:13px;color:#aaa;margin:8px 0 4px}
+nav input[type=range]{width:100%}
+nav input[type=number],nav input[type=text]{width:100%;padding:6px 8px;background:#0f3460;border:1px solid #333;color:#e0e0e0;border-radius:4px;font-size:13px}
+nav .val{font-size:12px;color:#4ecca3;margin-left:8px}
+nav button{width:100%;padding:10px;margin:6px 0;border:none;border-radius:6px;cursor:pointer;font-size:14px}
+.btn-save{background:#4ecca3;color:#1a1a2e}
+.btn-debug{background:#e94560;color:#fff}
+.btn-debug.off{background:#555;color:#999}
+.btn-off{background:#f39c12;color:#1a1a2e}
+.btn-auto{background:#3498db;color:#fff}
+.btn-auto.off{background:#555;color:#999}
+main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f0f23;position:relative}
+main .stream-wrap{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+main img{max-width:100%;max-height:calc(100vh - 40px)}
+main .close-btn{position:absolute;top:10px;right:10px;width:36px;height:36px;background:rgba(0,0,0,0.7);border:none;color:#fff;font-size:20px;border-radius:50%;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1}
+main .close-btn.visible{display:flex}
+.status-bar{position:fixed;bottom:0;left:360px;right:0;background:#16213e;padding:8px 16px;font-size:12px;display:flex;gap:20px}
+.status-bar span{color:#888}.status-bar .active{color:#4ecca3}
+</style>
+</head>
+<body>
+<nav>
+  <h2>Camera</h2>
+  <label>Device ID <span class="val" id="v_device_id">0</span></label>
+  <input type="number" id="device_id" value="0" min="0" max="5">
+  <label>Capture Width <span class="val" id="v_width">1280</span></label>
+  <input type="range" id="width" value="1280" min="320" max="1920" step="80">
+  <label>Capture Height <span class="val" id="v_height">720</span></label>
+  <input type="range" id="height" value="720" min="240" max="1080" step="60">
+
+  <h2>Detection</h2>
+  <label>Model Size <span class="val" id="v_model_size">640</span></label>
+  <input type="range" id="model_size" value="640" min="320" max="1280" step="160">
+  <label>Score Threshold <span class="val" id="v_score_threshold">0.5</span></label>
+  <input type="range" id="score_threshold" value="0.5" min="0.1" max="0.9" step="0.05">
+  <label>NMS Threshold <span class="val" id="v_nms_threshold">0.3</span></label>
+  <input type="range" id="nms_threshold" value="0.3" min="0.1" max="0.9" step="0.05">
+  <label>Min Eye Distance <span class="val" id="v_min_eye_dist">15</span></label>
+  <input type="range" id="min_eye_dist" value="15" min="5" max="50" step="1">
+  <label>Min Face Size <span class="val" id="v_min_face_size">30</span></label>
+  <input type="range" id="min_face_size" value="30" min="10" max="100" step="5">
+
+  <h2>Timing</h2>
+  <label>Active Timeout (s) <span class="val" id="v_active_timeout_sec">120</span></label>
+  <input type="range" id="active_timeout_sec" value="120" min="30" max="600" step="10">
+  <label>Passive Interval (s) <span class="val" id="v_passive_interval_sec">2</span></label>
+  <input type="range" id="passive_interval_sec" value="2" min="1" max="10" step="1">
+  <label>No-Face Cycles <span class="val" id="v_no_face_cycles">5</span></label>
+  <input type="range" id="no_face_cycles" value="5" min="2" max="30" step="1">
+  <label>No-Eyes Cycles <span class="val" id="v_no_eyes_cycles">15</span></label>
+  <input type="range" id="no_eyes_cycles" value="15" min="5" max="60" step="1">
+
+  <h2>System</h2>
+  <label>Server Port</label>
+  <input type="number" id="server_port" value="19999" min="1024" max="65535">
+  <label>LGTV CLI</label>
+  <input type="text" id="lg_tv_cmd" value="LGTVcli.exe">
+
+  <button class="btn-save" onclick="saveConfig()">Save Configuration</button>
+  <button class="btn-off" onclick="screenOff()">Turn Off Screen Now</button>
+  <button class="btn-auto" id="btn_auto" onclick="toggleAutoStart()">Auto-Start: ?</button>
+  <button class="btn-debug off" id="btn_debug" onclick="toggleDebug()">Start Debug Preview</button>
+</nav>
+<main>
+  <div class="stream-wrap">
+    <img id="stream" src="" alt="">
+    <button class="close-btn" id="close_btn" onclick="stopDebug()">&times;</button>
+  </div>
+</main>
+<div class="status-bar">
+  <span id="st_face">Face: --</span>
+  <span id="st_eyes">Eyes: --</span>
+  <span id="st_state">State: --</span>
+  <span id="st_no_face">NoFace: --</span>
+  <span id="st_no_eyes">NoEyes: --</span>
+</div>
+<script>
+var debugActive = false;
+const sliders=['device_id','width','height','model_size','score_threshold','nms_threshold','min_eye_dist','min_face_size','active_timeout_sec','passive_interval_sec','no_face_cycles','no_eyes_cycles'];
+
+async function load(){
+  const r=await fetch('/api/config');
+  const c=await r.json();
+  sliders.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el&&c[id]!==undefined){el.value=c[id];updateVal(id,c[id])}
+  });
+  document.getElementById('server_port').value=c.server_port||19999;
+  document.getElementById('lg_tv_cmd').value=c.lg_tv_cmd||'LGTVcli.exe';
+  updateAutoBtn(c.auto_start||false);
+
+  // Check debug state from server (recover from refresh)
+  try{
+    const ds=await fetch('/debug/status');
+    const dj=await ds.json();
+    if(!dj.active) updateDebugUI(false);
+  }catch(e){updateDebugUI(false);}
+}
+
+sliders.forEach(id=>{
+  const el=document.getElementById(id);
+  if(el)el.oninput=()=>updateVal(id,el.value);
+});
+
+function updateVal(id,val){
+  const v=document.getElementById('v_'+id);
+  if(v)v.textContent=val;
+}
+
+function getConfig(){
+  const c={};
+  sliders.forEach(id=>{const el=document.getElementById(id);if(el)c[id]=el.type=='range'?el.valueAsNumber:parseInt(el.value)});
+  c.server_port=parseInt(document.getElementById('server_port').value)||19999;
+  c.lg_tv_cmd=document.getElementById('lg_tv_cmd').value||'LGTVcli.exe';
+  c.auto_start=document.getElementById('btn_auto').textContent.includes('ON');
+  return c;
+}
+
+async function saveConfig(){
+  await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(getConfig())});
+  alert('Saved.');
+}
+
+function updateDebugUI(active){
+  debugActive=active;
+  const b=document.getElementById('btn_debug');
+  const c=document.getElementById('close_btn');
+  if(active){
+    b.textContent='Stop Debug Preview';
+    b.className='btn-debug';
+    c.className='close-btn visible';
+  }else{
+    b.textContent='Start Debug Preview';
+    b.className='btn-debug off';
+    c.className='close-btn';
+    document.getElementById('stream').src='';
+  }
+}
+
+function toggleDebug(){
+  if(debugActive){
+    stopDebug();
+  }else{
+    startDebug();
+  }
+}
+
+async function startDebug(){
+  document.getElementById('stream').src='/debug/stream';
+  updateDebugUI(true);
+}
+
+async function stopDebug(){
+  await fetch('/debug/stop',{method:'POST'});
+  updateDebugUI(false);
+}
+
+async function screenOff(){await fetch('/api/screen/off',{method:'POST'});}
+
+async function toggleAutoStart(){
+  const r=await fetch('/api/autostart',{method:'POST'});
+  const j=await r.json();
+  updateAutoBtn(j.enabled);
+}
+
+function updateAutoBtn(on){
+  const b=document.getElementById('btn_auto');
+  b.textContent='Auto-Start: '+(on?'ON':'OFF');
+  b.className='btn-auto'+(on?'':' off');
+}
+
+setInterval(async()=>{
+  try{const r=await fetch('/api/status');const s=await r.json();
+    document.getElementById('st_face').innerHTML='Face: <b>'+s.face+'</b>';
+    document.getElementById('st_eyes').innerHTML='Eyes: <b>'+s.eyes+'</b>';
+    document.getElementById('st_state').innerHTML='State: <b>'+s.state+'</b>';
+    document.getElementById('st_no_face').innerHTML='NoFace: '+s.no_face_count;
+    document.getElementById('st_no_eyes').innerHTML='NoEyes: '+s.no_eyes_count;
+  }catch(e){}
+},2000);
+
+load();
+</script>
+</body>
+</html>

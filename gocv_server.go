@@ -1,49 +1,49 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
 	"log"
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
 	"gocv.io/x/gocv"
 )
 
+//go:embed ui/index.html
+var uiHTML string
+
 var (
 	debugStreamActive bool
+	debugStopCh       = make(chan struct{}, 1)
 	debugStreamMu     sync.Mutex
 
-	// Shared status for the web UI
 	status struct {
-		mu            sync.RWMutex
-		faceFound     bool
-		eyesFound     bool
-		state         string
-		noFaceCount   int
-		noEyesCount   int
+		mu          sync.RWMutex
+		faceFound   bool
+		eyesFound   bool
+		state       string
+		noFaceCount int
+		noEyesCount int
 	}
 )
-
-const uiHTML = ` + "`" + $html + "`" + `
 
 func startHTTPServer(cfg Config) *http.Server {
 	mux := http.NewServeMux()
 
-	// UI
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Write([]byte(uiHTML))
 	})
 
-	// Debug MJPEG stream
 	mux.HandleFunc("/debug/stream", handleDebugStream)
+	mux.HandleFunc("/debug/stop", handleDebugStop)
+	mux.HandleFunc("/debug/status", handleDebugStatus)
 
-	// API: get config
 	mux.HandleFunc("/api/config", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.Method == "GET" {
@@ -60,7 +60,7 @@ func startHTTPServer(cfg Config) *http.Server {
 				c.System.ServerPort = 19999
 			}
 			old := getConfig()
-			c.System.AutoStart = old.System.AutoStart // preserve auto-start (set via dedicated API)
+			c.System.AutoStart = old.System.AutoStart
 			if err := updateConfig(c); err != nil {
 				http.Error(w, err.Error(), 500)
 				return
@@ -70,7 +70,6 @@ func startHTTPServer(cfg Config) *http.Server {
 		}
 	})
 
-	// API: screen off
 	mux.HandleFunc("/api/screen/off", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "POST only", 405)
@@ -81,7 +80,6 @@ func startHTTPServer(cfg Config) *http.Server {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
-	// API: auto-start toggle
 	mux.HandleFunc("/api/autostart", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "POST only", 405)
@@ -95,7 +93,6 @@ func startHTTPServer(cfg Config) *http.Server {
 		json.NewEncoder(w).Encode(map[string]bool{"enabled": old.System.AutoStart})
 	})
 
-	// API: status
 	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
 		status.mu.RLock()
 		defer status.mu.RUnlock()
@@ -130,6 +127,26 @@ func updateStatus(faceFound, eyesFound bool, state string, noFaceCount, noEyesCo
 	status.noEyesCount = noEyesCount
 }
 
+func handleDebugStop(w http.ResponseWriter, r *http.Request) {
+	select {
+	case debugStopCh <- struct{}{}:
+	default:
+	}
+	debugStreamMu.Lock()
+	debugStreamActive = false
+	debugStreamMu.Unlock()
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"status":"ok"}`))
+}
+
+func handleDebugStatus(w http.ResponseWriter, r *http.Request) {
+	debugStreamMu.Lock()
+	active := debugStreamActive
+	debugStreamMu.Unlock()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"active": active})
+}
+
 func handleDebugStream(w http.ResponseWriter, r *http.Request) {
 	debugStreamMu.Lock()
 	if debugStreamActive {
@@ -139,6 +156,13 @@ func handleDebugStream(w http.ResponseWriter, r *http.Request) {
 	}
 	debugStreamActive = true
 	debugStreamMu.Unlock()
+
+	// Clear any stale stop signal
+	select {
+	case <-debugStopCh:
+	default:
+	}
+
 	defer func() {
 		debugStreamMu.Lock()
 		debugStreamActive = false
@@ -161,37 +185,48 @@ func handleDebugStream(w http.ResponseWriter, r *http.Request) {
 	defer frame.Close()
 
 	for {
-		if !debugStreamActive {
+		// Check for explicit stop signal
+		select {
+		case <-debugStopCh:
 			return
+		default:
 		}
+
 		if ok := cam.Read(&frame); !ok || frame.Empty() {
 			time.Sleep(50 * time.Millisecond)
 			continue
 		}
 
-		// Re-read config every frame for real-time parameter tuning
 		cfg = getConfig()
 
 		faceFound, eyesFound, faces := detectPresenceDebug(cam, cfg)
 		drawDebugOverlay(&frame, faces, faceFound, eyesFound)
 		faces.Close()
 
-		// Also draw timestamp
-		gocv.PutText(&frame, time.Now().Format("15:04:05"), image.Pt(10, int(frame.Rows())-10),
+		gocv.PutText(&frame, time.Now().Format("15:04:05"),
+			image.Pt(10, int(frame.Rows())-10),
 			gocv.FontHersheySimplex, 0.5, color.RGBA{255, 255, 255, 255}, 1)
 
-		buf, err := gocv.IMEncode(".jpg", frame)
+		nbuf, err := gocv.IMEncode(gocv.JPEGFileExt, frame)
 		if err != nil {
 			continue
 		}
 
-		w.Write([]byte("--frame\r\nContent-Type: image/jpeg\r\n\r\n"))
-		w.Write(buf)
-		w.Write([]byte("\r\n"))
+		_, writeErr := w.Write([]byte("--frame\r\nContent-Type: image/jpeg\r\n\r\n"))
+		if writeErr != nil {
+			return
+		}
+		_, writeErr = w.Write(nbuf.GetBytes())
+		if writeErr != nil {
+			return
+		}
+		_, writeErr = w.Write([]byte("\r\n"))
+		if writeErr != nil {
+			return
+		}
 	}
 }
 
-// Signal sender for screen-off from web UI
 var screenOffRequest = make(chan struct{}, 1)
 
 func requestScreenOff() {
