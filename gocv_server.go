@@ -109,7 +109,7 @@ func startHTTPServer(cfg Config) *http.Server {
 	})
 
 	addr := fmt.Sprintf("127.0.0.1:%d", cfg.System.ServerPort)
-	srv := &http.Server{Addr: addr, Handler: mux}
+	srv := &http.Server{Addr: addr, Handler: mux, ReadTimeout: 10 * time.Second, IdleTimeout: 120 * time.Second}
 	go func() {
 		log.Printf("HTTP server: http://%s", addr)
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
@@ -243,6 +243,7 @@ func requestScreenOff() {
 	default:
 	}
 }
+
 
 
 
