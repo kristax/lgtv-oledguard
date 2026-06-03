@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
+	// "path/filepath" unused - SaveConfigFile moved to server.go
 	"sync/atomic"
 )
 
@@ -101,12 +101,6 @@ func LoadConfigFile(path string) (Config, error) {
 	return cfg, nil
 }
 
-func SaveConfigFile(cfg Config) error {
-	execPath, _ := os.Executable()
-	configDir := filepath.Dir(execPath)
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(configDir, "config.json"), data, 0644)
-}
+// SaveConfigFile is now in server.go (atomic write)
+
+

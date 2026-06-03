@@ -8,6 +8,8 @@ import (
 	"image/color"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -36,7 +38,9 @@ var (
 func startHTTPServer(cfg Config) *http.Server {
 	mux := http.NewServeMux()
 
+	// HTML with no-cache to prevent stale JS
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Write([]byte(uiHTML))
 	})
@@ -59,6 +63,15 @@ func startHTTPServer(cfg Config) *http.Server {
 			}
 			if c.System.ServerPort == 0 {
 				c.System.ServerPort = 19999
+			}
+			if c.Camera.Width == 0 {
+				c.Camera.Width = 1280
+			}
+			if c.Camera.Height == 0 {
+				c.Camera.Height = 720
+			}
+			if c.Detection.ModelSize == 0 {
+				c.Detection.ModelSize = 640
 			}
 			old := getConfig()
 			c.System.AutoStart = old.System.AutoStart
@@ -110,12 +123,27 @@ func startHTTPServer(cfg Config) *http.Server {
 
 	addr := fmt.Sprintf("127.0.0.1:%d", cfg.System.ServerPort)
 	srv := &http.Server{Addr: addr, Handler: mux, ReadTimeout: 10 * time.Second, IdleTimeout: 120 * time.Second}
+
+	// Auto-restart loop with panic recovery
 	go func() {
-		log.Printf("HTTP server: http://%s", addr)
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			log.Printf("HTTP server error: %v", err)
+		for {
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("HTTP server PANIC: %v ? restarting in 1s", r)
+					}
+				}()
+				log.Printf("HTTP server: http://%s", addr)
+				err := srv.ListenAndServe()
+				if err == http.ErrServerClosed {
+					return
+				}
+				log.Printf("HTTP server died: %v ? restarting in 1s", err)
+			}()
+			time.Sleep(1 * time.Second)
 		}
 	}()
+
 	return srv
 }
 
@@ -128,6 +156,12 @@ func updateStatus(faceFound, eyesFound bool, state string, noFaceCount, noEyesCo
 	status.noFaceCount = noFaceCount
 	status.noEyesCount = noEyesCount
 	status.idleSec = idleSec
+}
+
+func getStateStr() string {
+	status.mu.RLock()
+	defer status.mu.RUnlock()
+	return status.state
 }
 
 func handleDebugStop(w http.ResponseWriter, r *http.Request) {
@@ -213,29 +247,19 @@ func handleDebugStream(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		_, writeErr := w.Write([]byte("--frame\r\nContent-Type: image/jpeg\r\n\r\n"))
-		if writeErr != nil {
+		if _, err := w.Write([]byte("--frame\r\nContent-Type: image/jpeg\r\n\r\n")); err != nil {
 			return
 		}
-		_, writeErr = w.Write(nbuf.GetBytes())
-		if writeErr != nil {
+		if _, err := w.Write(nbuf.GetBytes()); err != nil {
 			return
 		}
-		_, writeErr = w.Write([]byte("\r\n"))
-		if writeErr != nil {
+		if _, err := w.Write([]byte("\r\n")); err != nil {
 			return
 		}
 	}
 }
 
 var screenOffRequest = make(chan struct{}, 1)
-
-
-func getStateStr() string {
-	status.mu.RLock()
-	defer status.mu.RUnlock()
-	return status.state
-}
 
 func requestScreenOff() {
 	select {
@@ -244,6 +268,19 @@ func requestScreenOff() {
 	}
 }
 
+// Atomic config save: write to temp file, then rename
+func SaveConfigFile(cfg Config) error {
+	execPath, _ := os.Executable()
+	configDir := filepath.Dir(execPath)
+	configPath := filepath.Join(configDir, "config.json")
+	tmpPath := configPath + ".tmp"
 
-
-
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, configPath)
+}
