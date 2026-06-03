@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"math"
@@ -75,7 +76,6 @@ func detectPresence(webcam *gocv.VideoCapture, cfg Config) (faceFound, eyesFound
 	return
 }
 
-// Debug detection: returns faces Mat for drawing overlays
 func detectPresenceDebug(webcam *gocv.VideoCapture, cfg Config) (faceFound, eyesFound bool, faces gocv.Mat) {
 	frame := gocv.NewMat()
 	defer frame.Close()
@@ -117,15 +117,21 @@ func detectPresenceDebug(webcam *gocv.VideoCapture, cfg Config) (faceFound, eyes
 	return faceFound, eyesFound, facesMat
 }
 
-// Draw detection overlays on frame (for debug stream)
-func drawDebugOverlay(frame *gocv.Mat, faces gocv.Mat, faceFound, eyesFound bool) {
+// Draw enhanced debug overlay with face sizes, filter status, and detection data panel
+func drawDebugOverlay(frame *gocv.Mat, faces gocv.Mat, faceFound, eyesFound bool, cfg Config, idleSec int64, state string) {
 	green := color.RGBA{0, 255, 0, 255}
-	red := color.RGBA{255, 0, 0, 255}
-	yellow := color.RGBA{255, 255, 0, 255}
+	red := color.RGBA{255, 60, 60, 255}
+	_ = color.RGBA{255, 200, 0, 255}
+	cyan := color.RGBA{0, 220, 220, 255}
 	white := color.RGBA{255, 255, 255, 255}
+	darkBG := color.RGBA{0, 0, 0, 180}
 
 	n := faces.Rows()
 	landmarkCols := faces.Cols()
+	minSize := cfg.Detection.MinFaceSize
+
+	var totalFaces, passFaces int
+	maxW, maxH := 0, 0
 
 	for r := 0; r < n; r++ {
 		fx := int(faces.GetFloatAt(r, 0))
@@ -133,39 +139,87 @@ func drawDebugOverlay(frame *gocv.Mat, faces gocv.Mat, faceFound, eyesFound bool
 		fw := int(faces.GetFloatAt(r, 2))
 		fh := int(faces.GetFloatAt(r, 3))
 
+		totalFaces++
+		passesFilter := fw >= minSize && fh >= minSize
+		if passesFilter {
+			passFaces++
+		}
+		if fw > maxW {
+			maxW = fw
+		}
+		if fh > maxH {
+			maxH = fh
+		}
+
+		// Color-code: green = passes, yellow = borderline, red = filtered out
 		boxColor := red
-		label := "face"
-		if faceFound && eyesFound {
+		label := fmt.Sprintf("%dx%d", fw, fh)
+		if passesFilter {
 			boxColor = green
-			label = "face+eyes"
-		} else if faceFound {
-			boxColor = yellow
-			label = "face only"
+			if eyesFound {
+				label = fmt.Sprintf("%dx%d EYES", fw, fh)
+			} else {
+				label = fmt.Sprintf("%dx%d face", fw, fh)
+			}
+		} else {
+			label = fmt.Sprintf("%dx%d <MIN", fw, fh)
 		}
 
 		gocv.Rectangle(frame, image.Rect(fx, fy, fx+fw, fy+fh), boxColor, 2)
-		gocv.PutText(frame, label, image.Pt(fx, fy-5), gocv.FontHersheySimplex, 0.5, boxColor, 1)
+		gocv.PutText(frame, label, image.Pt(fx, fy-5), gocv.FontHersheySimplex, 0.4, boxColor, 1)
 
-		// Draw landmarks if available
-		if landmarkCols >= 8 {
-			points := []struct{ x, y int }{
-				{int(faces.GetFloatAt(r, 4)), int(faces.GetFloatAt(r, 5))},  // right eye
-				{int(faces.GetFloatAt(r, 6)), int(faces.GetFloatAt(r, 7))},  // left eye
-			}
-			for _, p := range points {
-				if p.x > 0 && p.y > 0 {
-					gocv.Circle(frame, image.Pt(p.x, p.y), 3, green, -1)
+		// Draw eye landmarks if available
+		if landmarkCols >= 8 && passesFilter {
+			for _, idx := range []int{4, 6} {
+				px := int(faces.GetFloatAt(r, idx))
+				py := int(faces.GetFloatAt(r, idx+1))
+				if px > 0 && py > 0 {
+					gocv.Circle(frame, image.Pt(px, py), 3, cyan, -1)
 				}
 			}
 		}
 	}
 
-	// Status overlay at top-left
-	status := "no face"
-	if eyesFound {
-		status = "FACE+EYES PRESENT"
-	} else if faceFound {
-		status = "FACE ONLY - countdown"
+	// ---- Info panel (top-right, semi-transparent) ----
+	panelX := frame.Cols() - 280
+	panelY := 10
+	lineH := 22
+
+	lines := []string{
+		fmt.Sprintf("State: %s", state),
+		fmt.Sprintf("Idle: %ds", idleSec),
+		fmt.Sprintf("MinFaceSize: %dpx", minSize),
+		fmt.Sprintf("Faces raw: %d  pass: %d", totalFaces, passFaces),
 	}
-	gocv.PutText(frame, status, image.Pt(10, 30), gocv.FontHersheySimplex, 0.7, white, 2)
+	if maxW > 0 {
+		lines = append(lines, fmt.Sprintf("Face range: %d-%d x %d-%d px",
+			minSize, maxW, minSize, maxH))
+	}
+	if eyesFound {
+		lines = append(lines, "Eyes: DETECTED")
+	} else if faceFound {
+		lines = append(lines, "Eyes: not found")
+	} else {
+		lines = append(lines, "Eyes: --")
+	}
+
+	panelH := lineH*len(lines) + 16
+	gocv.Rectangle(frame, image.Rect(panelX-8, panelY-4, panelX+272, panelY+panelH), darkBG, -1)
+
+	for i, line := range lines {
+		y := panelY + 16 + i*lineH
+		textColor := white
+		if i == len(lines)-1 && eyesFound {
+			textColor = green
+		} else if i == len(lines)-1 && !faceFound {
+			textColor = red
+		}
+		gocv.PutText(frame, line, image.Pt(panelX, y), gocv.FontHersheySimplex, 0.45, textColor, 1)
+	}
+
+	// Bottom-left timestamp
+	gocv.PutText(frame, fmt.Sprintf("%s", ""),
+		image.Pt(10, frame.Rows()-20),
+		gocv.FontHersheySimplex, 0.4, color.RGBA{150, 150, 150, 255}, 1)
 }
+

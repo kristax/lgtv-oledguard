@@ -201,7 +201,7 @@ func handleDebugStream(w http.ResponseWriter, r *http.Request) {
 		cfg = getConfig()
 
 		faceFound, eyesFound, faces := detectPresenceDebug(cam, cfg)
-		drawDebugOverlay(&frame, faces, faceFound, eyesFound)
+		drawDebugOverlay(&frame, faces, faceFound, eyesFound, cfg, time.Now().Unix()-lastActivity.Load(), getStateStr())
 		faces.Close()
 
 		gocv.PutText(&frame, time.Now().Format("15:04:05"),
@@ -230,10 +230,19 @@ func handleDebugStream(w http.ResponseWriter, r *http.Request) {
 
 var screenOffRequest = make(chan struct{}, 1)
 
+
+func getStateStr() string {
+	status.mu.RLock()
+	defer status.mu.RUnlock()
+	return status.state
+}
+
 func requestScreenOff() {
 	select {
 	case screenOffRequest <- struct{}{}:
 	default:
 	}
 }
+
+
 
