@@ -1,5 +1,7 @@
 # LGTV OLED Guard
 
+[English](README.md)
+
 LG OLED 电视的在场感知屏幕保护程序。检测你是否在桌前，自动开关显示器以防止烧屏，延长 OLED 面板寿命。
 
 在 Windows 系统托盘静默运行。通过摄像头 + YuNet 人脸检测判断你是否在场。
@@ -7,20 +9,20 @@ LG OLED 电视的在场感知屏幕保护程序。检测你是否在桌前，自动开关显示器以防止烧屏，
 ## 工作原理
 
 ```
-活跃模式 (摄像头休眠) ──2分钟无操作──? 被动模式 (摄像头开启，每2秒检测)
-                                              │
-                                  检测到人脸+眼睛？──是──? 保持屏幕开启
-                                              │
-                                             否 ──? 累计周期
-                                              │
-                                   达到阈值？──是──? 关闭屏幕
-                                              │
-                              鼠标/键盘动作 ──────────? 开启屏幕，回到活跃模式
+活跃模式 (摄像头休眠) --2分钟无操作--> 被动模式 (摄像头开启，每2秒检测)
+                                              |
+                                  检测到人脸+眼睛？ --是--> 保持屏幕开启
+                                              |
+                                             否 --> 累计周期
+                                              |
+                                   达到阈值？ --是--> 关闭屏幕
+                                              |
+                              鼠标/键盘动作 ----------> 开启屏幕，回到活跃模式
 ```
 
 - **活跃模式**：摄像头关闭，仅监听鼠标键盘。零 CPU 开销。
 - **被动模式**：闲置 2 分钟后自动开启摄像头，YuNet DNN 每 2 秒检测一次人脸和眼睛。CPU 占用约 5-10%。
-- **关屏**：连续多次检测不到人脸（或有人脸但无眼睛），通过 `LGTVcli.exe` 关闭显示器。
+- **关屏**：连续多次检测不到人脸（或有人脸但无眼睛），通过 LGTVCompanion 关闭显示器。
 - **唤醒**：任意鼠标移动或按键立刻重新打开屏幕。
 
 ## 功能
@@ -38,15 +40,16 @@ LG OLED 电视的在场感知屏幕保护程序。检测你是否在桌前，自动开关显示器以防止烧屏，
 
 - Windows 10/11
 - 一个摄像头
-- [LGTVcli.exe](https://github.com/JPeterMugaas/LGTVcli-2) — LG 电视控制命令行工具（或任何接受 `-screenon` / `-screenoff` 的工具）
+- [LGTVCompanion](https://github.com/JPersson77/LGTVCompanion) — 通过 Wake-on-LAN / 串口命令控制 LG 电视（或任何接受 `-screenon` / `-screenoff` 的工具）
 - OpenCV 4.x + GoCV 绑定（源码编译时需要）
 
 ## 快速开始
 
-1. 从 [Releases](https://github.com/yourname/lgtv-oledguard/releases) 下载最新 `gocv.exe`
-2. 将 `LGTVcli.exe` 和 `face_detection_yunet_2023mar.onnx` 放在同一目录
-3. 运行 `gocv.exe` — 程序出现在系统托盘
-4. 右键托盘图标 → **Open Panel** 打开配置页面
+1. 从 [Releases](https://github.com/kristax/lgtv-oledguard/releases) 下载最新 `gocv.exe`
+2. 安装 [LGTVCompanion](https://github.com/JPersson77/LGTVCompanion) 或配置你的 LG 电视控制命令行工具
+3. 将 `face_detection_yunet_2023mar.onnx` 放在 exe 同级目录
+4. 运行 `gocv.exe` — 程序出现在系统托盘
+5. 右键托盘图标 -> **Open Panel** 打开配置页面
 
 ## 配置说明
 
@@ -85,8 +88,8 @@ windres resource.rc -o rsrc.syso -O coff -F pe-x86-64
 
 使用 YuNet 人脸检测 + ONNX 推理：
 
-1. **人脸**：YuNet DNN 逐帧扫描人脸 — 过滤掉小尺寸人脸（背景海报等）
-2. **眼睛**：提取左右眼关键点坐标 — 计算双眼距离判断是否看向屏幕
+1. **人脸**：YuNet DNN 逐帧扫描人脸 -- 过滤掉小尺寸人脸（背景海报等）
+2. **眼睛**：提取左右眼关键点坐标 -- 计算双眼距离判断是否看向屏幕
 3. **回退**：若无关键点数据，在人脸区域运行 Haar 级联（`haarcascade_eye` + `haarcascade_eye_tree_eyeglasses`）
 
 双级联策略兼顾戴眼镜和不戴眼镜的用户。
