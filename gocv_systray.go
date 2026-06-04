@@ -74,7 +74,13 @@ func runTray() {
 		HIconSm       syscall.Handle
 	}
 
-	icon, _, _ := user32.NewProc("LoadIconW").Call(0, uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("IDI_APPLICATION"))))
+	// Load icon resource embedded in exe (ID 1 from rsrc.syso)
+	icon, _, _ := user32.NewProc("LoadIconW").Call(instance, uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("#1"))))
+	if icon == 0 {
+		// Fallback: try programmatic icon
+		icon2 := createTrayIcon()
+		icon = uintptr(icon2)
+	}
 
 	wc := WNDCLASSEX{
 		CbSize:        uint32(unsafe.Sizeof(WNDCLASSEX{})),
@@ -126,6 +132,7 @@ func runTray() {
 		return
 	}
 	defer shell32.NewProc("Shell_NotifyIconW").Call(NIM_DELETE, uintptr(unsafe.Pointer(&nid)))
+	// icon is from exe resource or CreateIcon, destroyed on unload
 
 	infoLogger.Println("tray icon created")
 
@@ -210,4 +217,128 @@ func windowProc(h syscall.Handle, msg uint32, wp uintptr, lp uintptr) uintptr {
 
 	r, _, _ := user32.NewProc("DefWindowProcW").Call(uintptr(h), uintptr(msg), wp, lp)
 	return r
+}
+
+// createTrayIcon generates a 16x16 icon using CreateDIBSection (true alpha support for Win11 tray)
+func createTrayIcon() syscall.Handle {
+	w, h := 16, 16
+
+	// Build 32bpp BGRA pixel data with alpha channel
+	pixels := make([]byte, w*h*4)
+	cx, cy, r2 := 7.5, 7.5, 49.0
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			dx := float64(x) - cx
+			dy := float64(y) - cy
+			idx := ((h-1-y)*w + x) * 4 // BMP rows are bottom-up
+			if dx*dx+dy*dy <= r2 {
+				// Inside circle: teal-green #4ecca3, fully opaque
+				pixels[idx]   = 0xA3 // B
+				pixels[idx+1] = 0xCC // G
+				pixels[idx+2] = 0x4E // R
+				pixels[idx+3] = 0xFF // A
+			}
+			// Outside: already zero (transparent)
+		}
+	}
+
+	// BITMAPINFO for CreateDIBSection
+	type BITMAPINFOHEADER struct {
+		BiSize          uint32
+		BiWidth         int32
+		BiHeight        int32
+		BiPlanes        uint16
+		BiBitCount      uint16
+		BiCompression   uint32
+		BiSizeImage     uint32
+		BiXPelsPerMeter int32
+		BiYPelsPerMeter int32
+		BiClrUsed       uint32
+		BiClrImportant  uint32
+	}
+	bih := BITMAPINFOHEADER{
+		BiSize:    40,
+		BiWidth:   int32(w),
+		BiHeight:  int32(h),
+		BiPlanes:  1,
+		BiBitCount: 32,
+	}
+
+	var bits unsafe.Pointer
+	hBmp, _, _ := syscall.NewLazyDLL("gdi32.dll").NewProc("CreateDIBSection").Call(
+		0,
+		uintptr(unsafe.Pointer(&bih)),
+		0, // DIB_RGB_COLORS
+		uintptr(unsafe.Pointer(&bits)),
+		0, 0,
+	)
+	if hBmp == 0 {
+		// Fallback: try CreateIcon
+		return createTrayIconFallback()
+	}
+
+	// Copy pixels into DIB section
+	dst := unsafe.Slice((*byte)(bits), len(pixels))
+	copy(dst, pixels)
+
+	// Create 1bpp mask bitmap (all 1s = fully opaque where color pixels exist)
+	maskBytes := make([]byte, ((w+15)/16*2)*h) // row-aligned 16-bit
+	for i := range maskBytes {
+		maskBytes[i] = 0xFF
+	}
+	hMask, _, _ := syscall.NewLazyDLL("gdi32.dll").NewProc("CreateBitmap").Call(
+		uintptr(w), uintptr(h), 1, 1,
+		uintptr(unsafe.Pointer(&maskBytes[0])),
+	)
+
+	// Create icon from color + mask
+	type ICONINFO struct {
+		FIcon    uint32
+		XHotspot uint32
+		YHotspot uint32
+		HbmMask  syscall.Handle
+		HbmColor syscall.Handle
+	}
+	ii := ICONINFO{
+		FIcon:    1,
+		HbmMask:  syscall.Handle(hMask),
+		HbmColor: syscall.Handle(hBmp),
+	}
+
+	icon, _, _ := user32.NewProc("CreateIconIndirect").Call(uintptr(unsafe.Pointer(&ii)))
+
+	// Clean up the bitmaps (icon owns copies)
+	syscall.NewLazyDLL("gdi32.dll").NewProc("DeleteObject").Call(hBmp)
+	syscall.NewLazyDLL("gdi32.dll").NewProc("DeleteObject").Call(hMask)
+
+	return syscall.Handle(icon)
+}
+
+// createTrayIconFallback uses CreateIcon (XOR+AND mask, no alpha) as a last resort
+func createTrayIconFallback() syscall.Handle {
+	w, h := 16, 16
+	andPlane := make([]byte, w*h/8)
+	for i := range andPlane {
+		andPlane[i] = 0xFF
+	}
+	xorPlane := make([]byte, w*h*4)
+	cx, cy, r2 := 7.5, 7.5, 49.0
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			dx := float64(x) - cx
+			dy := float64(y) - cy
+			idx := (y*w + x) * 4
+			if dx*dx+dy*dy <= r2 {
+				xorPlane[idx]   = 0xA3
+				xorPlane[idx+1] = 0xCC
+				xorPlane[idx+2] = 0x4E
+			}
+		}
+	}
+	icon, _, _ := user32.NewProc("CreateIcon").Call(0,
+		uintptr(w), uintptr(h), 1, 32,
+		uintptr(unsafe.Pointer(&andPlane[0])),
+		uintptr(unsafe.Pointer(&xorPlane[0])),
+	)
+	return syscall.Handle(icon)
 }

@@ -19,7 +19,7 @@
     "camera_warmup_frames": 5
   },
   "system": {
-    "auto_start": false,
+    "auto_start": true,
     "server_port": 19999,
     "lg_tv_cmd": "LGTVcli.exe"
   }
