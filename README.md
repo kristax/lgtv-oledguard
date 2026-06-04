@@ -36,6 +36,10 @@ Active (no camera) --2 min idle--> Passive (camera on, 2s detection)
 - **i18n** ¡ª Chinese and English UI
 - **MJPEG debug stream** ¡ª see the camera feed with bounding boxes and detection data in real time
 
+## Screenshot
+
+![Control Panel](resources/control_panel.png)
+
 ## Requirements
 
 - Windows 10/11
