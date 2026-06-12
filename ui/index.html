@@ -3,126 +3,281 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Presence Detector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+:root{
+  --bg:#000;--bg-panel:#060606;--bg-card:#080808;--bg-input:#0c0c0c;
+  --border:#1c1c1c;--border-hi:#2a2a2a;
+  --text:#c8c8c8;--text-dim:#555;--text-hi:#e8e8e8;
+  --accent:#4ecca3;--glow:rgba(78,204,163,0.25);
+  --warn:#f39c12;--danger:#e94560;--blue:#3498db;
+  --font:'JetBrains Mono',monospace;
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,Segoe UI,sans-serif;background:#1a1a2e;color:#e0e0e0;display:flex;min-height:100vh}
-nav{width:380px;background:#16213e;display:flex;flex-direction:column;height:100vh;flex-shrink:0;overflow:hidden}
-nav .lang-bar{display:flex;gap:8px;margin-bottom:16px}
-nav .lang-bar button{padding:4px 12px;border:1px solid #444;background:transparent;color:#888;border-radius:4px;cursor:pointer;font-size:12px}
-nav .lang-bar button.active{background:#4ecca3;color:#1a1a2e;border-color:#4ecca3}
-nav h2{font-size:13px;color:#888;text-transform:uppercase;margin:18px 0 6px;letter-spacing:1px;border-bottom:1px solid #222;padding-bottom:4px}
-nav .params-scroll h2:first-of-type{margin-top:0}
-nav label{display:block;font-size:13px;color:#ccc;margin:10px 0 2px}
-nav label .desc{display:block;font-size:11px;color:#666;font-weight:normal;margin-top:1px}
-nav .val{font-size:12px;color:#4ecca3;margin-left:8px}
-nav input[type=range]{width:100%;margin-top:2px}
-nav input[type=number],nav input[type=text]{width:100%;padding:6px 8px;background:#0f3460;border:1px solid #333;color:#e0e0e0;border-radius:4px;font-size:13px}
-nav button.action{width:100%;padding:10px;margin:6px 0;border:none;border-radius:6px;cursor:pointer;font-size:14px}
-.btn-save{background:#4ecca3;color:#1a1a2e}
-.btn-debug{background:#e94560;color:#fff}
-.btn-debug.off{background:#555;color:#999}
-.btn-off{background:#f39c12;color:#1a1a2e}
-.btn-auto{background:#3498db;color:#fff}
-.btn-auto.off{background:#555;color:#999}
-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f0f23;position:relative}
-main .stream-wrap{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-main img{max-width:100%;max-height:calc(100vh - 50px)}
-main .close-btn{position:absolute;top:10px;right:10px;width:36px;height:36px;background:rgba(0,0,0,0.7);border:none;color:#fff;font-size:20px;border-radius:50%;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1}
-main .close-btn.visible{display:flex}
-.status-bar{position:fixed;bottom:0;left:380px;right:0;background:#16213e;padding:8px 16px;font-size:12px;display:flex;gap:24px;flex-wrap:wrap}
-.status-bar .item{color:#888}
-.status-bar .item b{color:#ccc}
-.status-bar .item.true b{color:#4ecca3}
-.status-bar .item.warn b{color:#f39c12}
-nav .params-scroll{flex:1;overflow-y:auto;padding:20px 20px 0 20px}
-nav .btn-bar{flex-shrink:0;padding:10px 20px 16px 20px;background:#16213e;border-top:1px solid #222}</style>
+
+/* === OLED scanline grain === */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+  opacity:0.5;
+}
+
+body{
+  font-family:var(--font);background:var(--bg);color:var(--text);
+  display:flex;min-height:100vh;font-size:12px;font-weight:400;
+  letter-spacing:0.02em;-webkit-font-smoothing:antialiased;
+}
+
+/* === SIDEBAR — narrow control strip === */
+nav{
+  width:210px;background:var(--bg-panel);display:flex;flex-direction:column;
+  height:100vh;flex-shrink:0;overflow:hidden;border-right:1px solid var(--border);
+  padding:20px 16px;
+}
+nav .nav-top{flex:0 0 auto}
+nav .nav-mid{flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:12px}
+nav .nav-bot{flex:0 0 auto;border-top:1px solid var(--border);padding-top:14px}
+
+/* Language */
+nav .lang-bar{display:flex;gap:1px;margin-bottom:18px}
+nav .lang-bar button{
+  flex:1;padding:5px 0;border:1px solid var(--border);background:transparent;
+  color:var(--text-dim);cursor:pointer;font-size:10px;font-family:var(--font);
+  letter-spacing:0.06em;transition:all 0.2s;
+}
+nav .lang-bar button.active{background:var(--accent);color:#000;border-color:var(--accent);box-shadow:0 0 12px var(--glow)}
+
+/* Action buttons */
+nav button.action{
+  width:100%;padding:9px 0;margin:4px 0;border:1px solid var(--border);cursor:pointer;
+  font-size:11px;font-family:var(--font);font-weight:500;
+  letter-spacing:0.04em;transition:all 0.2s;background:transparent;color:var(--text);
+}
+nav button.action:hover{border-color:var(--text-dim)}
+.btn-save{background:var(--accent)!important;color:#000!important;border-color:var(--accent)!important}
+.btn-save:hover{box-shadow:0 0 20px var(--glow)}
+.btn-off{color:var(--warn)!important;border-color:var(--warn)!important}
+.btn-off:hover{background:var(--warn)!important;color:#000!important}
+.btn-auto{color:var(--blue)!important;border-color:var(--blue)!important}
+.btn-auto:hover{background:var(--blue)!important;color:#000!important}
+.btn-auto.off{color:var(--text-dim)!important;border-color:var(--border)!important}
+.btn-debug{color:var(--danger)!important;border-color:var(--danger)!important}
+.btn-debug:hover{background:var(--danger)!important;color:#fff!important}
+.btn-debug.off{color:var(--text-dim)!important;border-color:var(--border)!important}
+
+/* Status indicators in sidebar */
+nav .st{padding:0}
+nav .st .si{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:10px;color:var(--text-dim);letter-spacing:0.03em}
+nav .st .si b{color:var(--text);font-weight:500}
+nav .st .si.on b{color:var(--accent)}
+nav .st .si.warn b{color:var(--warn)}
+nav .st .si .st-dot{width:5px;height:5px;background:var(--border-hi);flex-shrink:0;margin-left:6px}
+nav .st .si.on .st-dot{background:var(--accent);box-shadow:0 0 6px var(--glow)}
+nav .st .si.warn .st-dot{background:var(--warn)}
+
+/* === MAIN AREA === */
+main{
+  flex:1;display:flex;align-items:stretch;background:var(--bg);
+  background-image:
+    linear-gradient(rgba(255,255,255,0.012) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,0.012) 1px,transparent 1px);
+  background-size:24px 24px;
+  padding:24px;overflow-y:auto;
+}
+
+/* Card grid */
+main .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;align-content:start}
+@media(max-width:900px){main .grid{grid-template-columns:1fr}}
+
+.card{
+  background:var(--bg-card);border:1px solid var(--border);
+  padding:18px 20px;transition:border-color 0.2s;
+}
+.card:hover{border-color:var(--border-hi)}
+.card h2{
+  font-size:10px;color:var(--text-dim);text-transform:uppercase;
+  letter-spacing:0.12em;font-weight:500;margin-bottom:14px;
+  padding-bottom:8px;border-bottom:1px solid var(--border);
+}
+.card label{display:block;font-size:11px;color:var(--text);margin:10px 0 3px}
+.card label .desc{display:block;font-size:9px;color:var(--text-dim);font-weight:400;margin-top:1px;line-height:1.5}
+.card .val{font-size:11px;color:var(--accent);margin-left:6px;font-weight:500}
+.card .row{display:flex;gap:12px}
+.card .row>div{flex:1}
+
+/* Inputs in cards */
+.card input[type=range]{
+  width:100%;margin-top:3px;-webkit-appearance:none;appearance:none;
+  background:transparent;height:18px;cursor:pointer;
+}
+.card input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--border-hi)}
+.card input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:8px;height:8px;background:var(--accent);margin-top:-4px;
+  box-shadow:0 0 8px var(--glow);transition:box-shadow 0.2s;
+}
+.card input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 0 16px var(--glow)}
+.card input[type=number],.card input[type=text]{
+  width:100%;padding:6px 8px;background:var(--bg-input);border:1px solid var(--border);
+  color:var(--text-hi);font-size:11px;font-family:var(--font);letter-spacing:0.03em;
+  transition:border-color 0.15s,box-shadow 0.15s;
+}
+.card input[type=number]:focus,.card input[type=text]:focus{
+  outline:none;border-color:var(--accent);box-shadow:0 0 0 1px var(--glow);
+}
+
+/* Checkboxes */
+.card input[type=checkbox]{
+  appearance:none;-webkit-appearance:none;
+  width:11px;height:11px;background:var(--bg-input);border:1px solid var(--border);
+  cursor:pointer;position:relative;flex-shrink:0;
+  transition:border-color 0.15s,background 0.15s,box-shadow 0.15s;
+}
+.card input[type=checkbox]:checked{background:var(--accent);border-color:var(--accent);box-shadow:0 0 6px var(--glow)}
+.card input[type=checkbox]:checked::after{
+  content:'';position:absolute;left:3px;top:1px;
+  width:3px;height:6px;border:solid #000;border-width:0 1.5px 1.5px 0;
+  transform:rotate(45deg);
+}
+
+/* Hotkey card specifics */
+.hk-enable{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.hk-enable span{font-size:11px;color:var(--text)}
+.hk-mods{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0}
+.hk-mods label{display:flex;align-items:center;gap:3px;font-size:10px;color:var(--text);margin:0;cursor:pointer;font-weight:400}
+.hk-key-input{cursor:pointer;text-align:center}
+
+/* === DEBUG STREAM OVERLAY === */
+.debug-stream{
+  display:none;position:relative;width:100%;align-items:center;justify-content:center;
+}
+body.debug main{display:flex;gap:16px;align-items:stretch}
+body.debug .debug-stream{display:flex;flex:1;min-width:0}
+body.debug .grid{display:block;width:280px;flex-shrink:0;align-self:stretch}
+body.debug .grid .card{height:100%}
+body.debug .card:nth-child(1),
+body.debug .card:nth-child(3),
+body.debug .card:nth-child(4){display:none}
+.debug-stream img{max-width:100%;max-height:calc(100vh - 48px);border:1px solid var(--border)}
+.debug-stream .close-btn{
+  position:absolute;top:0;right:0;
+  width:26px;height:26px;background:rgba(0,0,0,0.9);border:1px solid var(--border);
+  color:var(--text);font-size:13px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font);transition:border-color 0.2s,color 0.2s;
+}
+.debug-stream .close-btn:hover{border-color:var(--danger);color:var(--danger)}
+
+/* === ANIMATIONS === */
+@keyframes cardIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.card:nth-child(1){animation:cardIn 0.35s ease backwards;animation-delay:0.05s}
+.card:nth-child(2){animation:cardIn 0.35s ease backwards;animation-delay:0.1s}
+.card:nth-child(3){animation:cardIn 0.35s ease backwards;animation-delay:0.15s}
+.card:nth-child(4){animation:cardIn 0.35s ease backwards;animation-delay:0.2s}
+</style>
 </head>
 <body>
 <nav>
-  <div class="params-scroll"><div class="lang-bar">
-    <button class="active" onclick="setLang('zh')">中文</button>
-    <button onclick="setLang('en')">English</button>
+  <div class="nav-top">
+    <div class="lang-bar">
+      <button class="active" onclick="setLang('zh')">中文</button>
+      <button onclick="setLang('en')">EN</button>
+    </div>
   </div>
 
-  <h2 data-t="sec_camera"></h2>
-  <label><span data-t="lbl_device_id"></span> <span class="val" id="v_device_id">0</span><span class="desc" data-t="desc_device_id"></span></label>
-  <input type="number" id="device_id" value="0" min="0" max="5">
-  <label><span data-t="lbl_width"></span> <span class="val" id="v_width">1280</span><span class="desc" data-t="desc_width"></span></label>
-  <input type="range" id="width" value="1280" min="320" max="1920" step="80">
-  <label><span data-t="lbl_height"></span> <span class="val" id="v_height">720</span><span class="desc" data-t="desc_height"></span></label>
-  <input type="range" id="height" value="720" min="240" max="1080" step="60">
-
-  <h2 data-t="sec_detection"></h2>
-  <label><span data-t="lbl_model_size"></span> <span class="val" id="v_model_size">640</span><span class="desc" data-t="desc_model_size"></span></label>
-  <input type="range" id="model_size" value="640" min="320" max="1280" step="160">
-  <label><span data-t="lbl_score_threshold"></span> <span class="val" id="v_score_threshold">0.5</span><span class="desc" data-t="desc_score_threshold"></span></label>
-  <input type="range" id="score_threshold" value="0.5" min="0.1" max="0.9" step="0.05">
-  <label><span data-t="lbl_nms_threshold"></span> <span class="val" id="v_nms_threshold">0.3</span><span class="desc" data-t="desc_nms_threshold"></span></label>
-  <input type="range" id="nms_threshold" value="0.3" min="0.1" max="0.9" step="0.05">
-  <label><span data-t="lbl_min_eye_dist"></span> <span class="val" id="v_min_eye_dist">15</span><span class="desc" data-t="desc_min_eye_dist"></span></label>
-  <input type="range" id="min_eye_dist" value="15" min="5" max="50" step="1">
-  <label><span data-t="lbl_min_face_size"></span> <span class="val" id="v_min_face_size">30</span><span class="desc" data-t="desc_min_face_size"></span></label>
-  <input type="range" id="min_face_size" value="30" min="10" max="100" step="5">
-
-  <h2 data-t="sec_timing"></h2>
-  <label><span data-t="lbl_active_timeout"></span> <span class="val" id="v_active_timeout_sec">120</span><span class="desc" data-t="desc_active_timeout"></span></label>
-  <input type="range" id="active_timeout_sec" value="120" min="30" max="600" step="10">
-  <label><span data-t="lbl_passive_interval"></span> <span class="val" id="v_passive_interval_sec">2</span><span class="desc" data-t="desc_passive_interval"></span></label>
-  <input type="range" id="passive_interval_sec" value="2" min="1" max="10" step="1">
-  <label><span data-t="lbl_no_face_cycles"></span> <span class="val" id="v_no_face_cycles">5</span><span class="desc" data-t="desc_no_face_cycles"></span></label>
-  <input type="range" id="no_face_cycles" value="5" min="2" max="30" step="1">
-  <label><span data-t="lbl_no_eyes_cycles"></span> <span class="val" id="v_no_eyes_cycles">15</span><span class="desc" data-t="desc_no_eyes_cycles"></span></label>
-  <input type="range" id="no_eyes_cycles" value="15" min="5" max="60" step="1">
-
-  <h2 data-t="sec_system"></h2>
-  <label><span data-t="lbl_server_port"></span><span class="desc" data-t="desc_server_port"></span></label>
-  <input type="number" id="server_port" value="19999" min="1024" max="65535">
-  <label><span data-t="lbl_lgtv_cmd"></span><span class="desc" data-t="desc_lgtv_cmd"></span></label>
-  <input type="text" id="lg_tv_cmd" value="LGTVcli.exe">
-
-  <label><span data-t="lbl_hotkey"></span><span class="desc" data-t="desc_hotkey"></span></label>
-  <div style="display:flex;align-items:center;gap:6px;margin:4px 0">
-    <input type="checkbox" id="hotkey_enabled" style="width:auto;margin:0" onchange="onHotkeyCfgChange()">
-    <span data-t="lbl_hotkey_enabled" style="font-size:13px;color:#ccc"></span>
+  <div class="nav-mid">
+    <button class="action btn-save" onclick="saveConfig()" data-t="btn_save"></button>
+    <button class="action btn-off" onclick="screenOff()" data-t="btn_screen_off"></button>
+    <button class="action btn-auto" id="btn_auto" onclick="toggleAutoStart()"></button>
+    <button class="action btn-debug off" id="btn_debug" onclick="toggleDebug()"></button>
   </div>
-  <label style="margin-top:8px"><span data-t="lbl_hotkey_mods"></span></label>
-  <div style="display:flex;flex-wrap:wrap;gap:10px;margin:4px 0">
-    <label style="display:flex;align-items:center;gap:3px;font-size:13px;color:#ccc;margin:0;cursor:pointer">
-      <input type="checkbox" id="hk_ctrl" style="width:auto;margin:0" onchange="onHotkeyCfgChange()"> Ctrl
-    </label>
-    <label style="display:flex;align-items:center;gap:3px;font-size:13px;color:#ccc;margin:0;cursor:pointer">
-      <input type="checkbox" id="hk_alt" style="width:auto;margin:0" onchange="onHotkeyCfgChange()"> Alt
-    </label>
-    <label style="display:flex;align-items:center;gap:3px;font-size:13px;color:#ccc;margin:0;cursor:pointer">
-      <input type="checkbox" id="hk_shift" style="width:auto;margin:0" onchange="onHotkeyCfgChange()"> Shift
-    </label>
-    <label style="display:flex;align-items:center;gap:3px;font-size:13px;color:#ccc;margin:0;cursor:pointer">
-      <input type="checkbox" id="hk_win" style="width:auto;margin:0" onchange="onHotkeyCfgChange()"> Win
-    </label>
-  </div>
-  <label style="margin-top:6px"><span data-t="lbl_hotkey_key"></span></label>
-  <input type="text" id="hotkey_key" readonly placeholder="Click and press a key" style="cursor:pointer;text-align:center">
 
-  </div><div class="btn-bar"><button class="action btn-save" onclick="saveConfig()" data-t="btn_save"></button>
-  <button class="action btn-off" onclick="screenOff()" data-t="btn_screen_off"></button>
-  <button class="action btn-auto" id="btn_auto" onclick="toggleAutoStart()"></button>
-  <button class="action btn-debug off" id="btn_debug" onclick="toggleDebug()"></div></button>
+  <div class="nav-bot">
+    <div class="st">
+      <div class="si" id="st_face"></div>
+      <div class="si" id="st_eyes"></div>
+      <div class="si" id="st_state"></div>
+      <div class="si" id="st_idle"></div>
+      <div class="si" id="st_hotkey"></div>
+    </div>
+  </div>
 </nav>
+
 <main>
-  <div class="stream-wrap">
+  <!-- Card grid (hidden when debug active) -->
+  <div class="grid">
+    <!-- Camera card -->
+    <div class="card">
+      <h2 data-t="sec_camera"></h2>
+      <label><span data-t="lbl_device_id"></span> <span class="val" id="v_device_id">0</span><span class="desc" data-t="desc_device_id"></span></label>
+      <input type="number" id="device_id" value="0" min="0" max="5">
+      <div class="row">
+        <div><label><span data-t="lbl_width"></span> <span class="val" id="v_width">1280</span></label><input type="range" id="width" value="1280" min="320" max="1920" step="80"></div>
+        <div><label><span data-t="lbl_height"></span> <span class="val" id="v_height">720</span></label><input type="range" id="height" value="720" min="240" max="1080" step="60"></div>
+      </div>
+    </div>
+
+    <!-- Detection card -->
+    <div class="card">
+      <h2 data-t="sec_detection"></h2>
+      <label><span data-t="lbl_model_size"></span> <span class="val" id="v_model_size">640</span><span class="desc" data-t="desc_model_size"></span></label>
+      <input type="range" id="model_size" value="640" min="320" max="1280" step="160">
+      <label><span data-t="lbl_score_threshold"></span> <span class="val" id="v_score_threshold">0.5</span></label>
+      <input type="range" id="score_threshold" value="0.5" min="0.1" max="0.9" step="0.05">
+      <label><span data-t="lbl_nms_threshold"></span> <span class="val" id="v_nms_threshold">0.3</span></label>
+      <input type="range" id="nms_threshold" value="0.3" min="0.1" max="0.9" step="0.05">
+      <label><span data-t="lbl_min_eye_dist"></span> <span class="val" id="v_min_eye_dist">15</span></label>
+      <input type="range" id="min_eye_dist" value="15" min="5" max="50" step="1">
+      <label><span data-t="lbl_min_face_size"></span> <span class="val" id="v_min_face_size">30</span></label>
+      <input type="range" id="min_face_size" value="30" min="10" max="100" step="5">
+    </div>
+
+    <!-- Timing card -->
+    <div class="card">
+      <h2 data-t="sec_timing"></h2>
+      <div class="row">
+        <div><label><span data-t="lbl_active_timeout"></span> <span class="val" id="v_active_timeout_sec">120</span></label><input type="range" id="active_timeout_sec" value="120" min="30" max="600" step="10"></div>
+        <div><label><span data-t="lbl_passive_interval"></span> <span class="val" id="v_passive_interval_sec">2</span></label><input type="range" id="passive_interval_sec" value="2" min="1" max="10" step="1"></div>
+      </div>
+      <div class="row">
+        <div><label><span data-t="lbl_no_face_cycles"></span> <span class="val" id="v_no_face_cycles">5</span></label><input type="range" id="no_face_cycles" value="5" min="2" max="30" step="1"></div>
+        <div><label><span data-t="lbl_no_eyes_cycles"></span> <span class="val" id="v_no_eyes_cycles">15</span></label><input type="range" id="no_eyes_cycles" value="15" min="5" max="60" step="1"></div>
+      </div>
+    </div>
+
+    <!-- System card -->
+    <div class="card">
+      <h2 data-t="sec_system"></h2>
+      <label><span data-t="lbl_server_port"></span><span class="desc" data-t="desc_server_port"></span></label>
+      <input type="number" id="server_port" value="19999" min="1024" max="65535">
+      <label><span data-t="lbl_lgtv_cmd"></span><span class="desc" data-t="desc_lgtv_cmd"></span></label>
+      <input type="text" id="lg_tv_cmd" value="LGTVcli.exe">
+      <label style="margin-top:14px"><span data-t="lbl_hotkey"></span><span class="desc" data-t="desc_hotkey"></span></label>
+      <div class="hk-enable">
+        <input type="checkbox" id="hotkey_enabled" onchange="onHotkeyCfgChange()">
+        <span data-t="lbl_hotkey_enabled"></span>
+      </div>
+      <label style="margin-top:6px"><span data-t="lbl_hotkey_mods"></span></label>
+      <div class="hk-mods">
+        <label><input type="checkbox" id="hk_ctrl" onchange="onHotkeyCfgChange()"> Ctrl</label>
+        <label><input type="checkbox" id="hk_alt" onchange="onHotkeyCfgChange()"> Alt</label>
+        <label><input type="checkbox" id="hk_shift" onchange="onHotkeyCfgChange()"> Shift</label>
+        <label><input type="checkbox" id="hk_win" onchange="onHotkeyCfgChange()"> Win</label>
+      </div>
+      <label style="margin-top:6px"><span data-t="lbl_hotkey_key"></span></label>
+      <input type="text" id="hotkey_key" readonly placeholder="Click and press a key" class="hk-key-input">
+    </div>
+  </div>
+
+  <!-- Debug stream (shown when debug active) -->
+  <div class="debug-stream" id="debug_stream_wrap">
     <img id="stream" src="" alt="">
     <button class="close-btn" id="close_btn" onclick="stopDebug()">&times;</button>
   </div>
 </main>
-<div class="status-bar">
-  <span class="item" id="st_face"></span>
-  <span class="item" id="st_eyes"></span>
-  <span class="item" id="st_state"></span>
-  <span class="item" id="st_idle"></span>
-  <span class="item" id="st_no_face"></span>
-  <span class="item" id="st_no_eyes"></span>
-  <span class="item" id="st_hotkey"></span>
-</div>
+
 <script>
 // === i18n ===
 const T={
@@ -145,36 +300,36 @@ lbl_lgtv_cmd:"LGTV 命令",desc_lgtv_cmd:"控制显示器的命令行工具路�
 lbl_hotkey:"快捷键",desc_hotkey:"全局快捷键，快速关闭屏幕。息屏后 2 秒内不会响应键鼠唤醒",
 lbl_hotkey_enabled:"启用快捷键",lbl_hotkey_mods:"修饰键",lbl_hotkey_key:"按键",
 btn_save:"保存配置",btn_screen_off:"立即关闭屏幕",
-btn_auto_on:"开机自启: 开",btn_auto_off:"开机自启: 关",
-btn_debug_start:"开启调试预览",btn_debug_stop:"关闭调试预览",
-st_face:"人脸",st_eyes:"眼睛",st_state:"状态",st_idle:"空闲",st_no_face:"无人脸计数",st_no_eyes:"无眼睛计数",
+btn_auto_on:"自启: ON",btn_auto_off:"自启: OFF",
+btn_debug_start:"调试预览",btn_debug_stop:"停止调试",
+st_face:"人脸",st_eyes:"眼睛",st_state:"状态",st_idle:"空闲",
 active:"活跃 (摄像头休眠)",passive:"被动检测中",screen_off:"屏幕已关闭",
-lang_zh:"中文",lang_en:"English"
+lang_zh:"中文",lang_en:"EN"
 },
 en:{
 sec_camera:"Camera",sec_detection:"Detection",sec_timing:"Timing",sec_system:"System",
 lbl_device_id:"Device ID",desc_device_id:"Camera device index, 0 for first camera",
-lbl_width:"Capture Width",desc_width:"Capture resolution width (px). Higher = clearer but more CPU",
-lbl_height:"Capture Height",desc_height:"Capture resolution height (px)",
-lbl_model_size:"Model Size",desc_model_size:"YuNet DNN internal inference size. 320=fast, 640=balanced, 1280=max accuracy",
-lbl_score_threshold:"Score Threshold",desc_score_threshold:"Minimum confidence for face detection. Lower = more detections (more false positives)",
-lbl_nms_threshold:"NMS Threshold",desc_nms_threshold:"Non-maximum suppression threshold. Higher keeps more overlapping face boxes",
-lbl_min_eye_dist:"Min Eye Distance",desc_min_eye_dist:"Minimum eye landmark distance (px) to consider eyes visible. Below = looking away",
-lbl_min_face_size:"Min Face Size",desc_min_face_size:"Ignore face detections smaller than this (px). Filters background noise",
-lbl_active_timeout:"Active Timeout (s)",desc_active_timeout:"Seconds without mouse/keyboard before camera activates. Camera sleeps during normal use",
-lbl_passive_interval:"Passive Interval (s)",desc_passive_interval:"Detection interval in camera mode. Lower = more responsive, higher CPU",
-lbl_no_face_cycles:"No-Face Cycles",desc_no_face_cycles:"Consecutive no-face detections to confirm absence. × interval = actual seconds",
-lbl_no_eyes_cycles:"No-Eyes Cycles",desc_no_eyes_cycles:"Consecutive face-but-no-eyes detections to confirm not watching. × interval = actual seconds",
+lbl_width:"Width",desc_width:"Capture resolution width (px). Higher = clearer but more CPU",
+lbl_height:"Height",desc_height:"Capture resolution height (px)",
+lbl_model_size:"Model Size",desc_model_size:"YuNet DNN internal size. 320=fast, 640=balanced, 1280=max accuracy",
+lbl_score_threshold:"Confidence",desc_score_threshold:"Minimum confidence for face detection. Lower = more detections",
+lbl_nms_threshold:"NMS Threshold",desc_nms_threshold:"Non-maximum suppression threshold. Higher keeps more overlapping boxes",
+lbl_min_eye_dist:"Eye Dist",desc_min_eye_dist:"Minimum eye landmark distance (px) to consider eyes visible",
+lbl_min_face_size:"Min Face",desc_min_face_size:"Ignore face detections smaller than this (px)",
+lbl_active_timeout:"Timeout (s)",desc_active_timeout:"Idle seconds before camera activates. Camera sleeps during normal use",
+lbl_passive_interval:"Interval (s)",desc_passive_interval:"Detection interval in camera mode. Lower = more responsive",
+lbl_no_face_cycles:"No-Face Cycles",desc_no_face_cycles:"Consecutive no-face detections to confirm absence",
+lbl_no_eyes_cycles:"No-Eyes Cycles",desc_no_eyes_cycles:"Consecutive face-but-no-eyes to confirm not watching",
 lbl_server_port:"HTTP Port",desc_server_port:"Web management interface port. Requires restart to apply",
 lbl_lgtv_cmd:"LGTV Command",desc_lgtv_cmd:"Display control CLI tool path. Used to turn screen on/off",
 lbl_hotkey:"Hotkey",desc_hotkey:"Global shortcut to turn off screen. 2s wake guard after off",
 lbl_hotkey_enabled:"Enable Hotkey",lbl_hotkey_mods:"Modifiers",lbl_hotkey_key:"Key",
-btn_save:"Save Config",btn_screen_off:"Turn Off Screen Now",
+btn_save:"Save Config",btn_screen_off:"Turn Off Screen",
 btn_auto_on:"Auto-Start: ON",btn_auto_off:"Auto-Start: OFF",
-btn_debug_start:"Start Debug",btn_debug_stop:"Stop Debug",
-st_face:"Face",st_eyes:"Eyes",st_state:"State",st_idle:"Idle",st_no_face:"NoFace",st_no_eyes:"NoEyes",
-active:"Active (camera asleep)",passive:"Passive detection",screen_off:"Screen OFF",
-lang_zh:"中文",lang_en:"English"
+btn_debug_start:"Debug",btn_debug_stop:"Stop Debug",
+st_face:"Face",st_eyes:"Eyes",st_state:"State",st_idle:"Idle",
+active:"Active",passive:"Passive",screen_off:"Screen OFF",
+lang_zh:"中文",lang_en:"EN"
 }};
 
 let lang=localStorage.getItem('lang')||'zh';
@@ -197,7 +352,6 @@ b.classList.toggle('active',(b.textContent.trim()===t('lang_zh')&&lang==='zh')||
 
 // === Config ===
 var debugActive=false,autoOn=false;
-// sliders kept for value displays only
 
 async function load(){
 const r=await fetch('/api/config');const c=await r.json();
@@ -247,8 +401,7 @@ debugActive=active;
 const b=document.getElementById('btn_debug'),c=document.getElementById('close_btn');
 b.textContent=active?t('btn_debug_stop'):t('btn_debug_start');
 b.className='action btn-debug'+(active?'':' off');
-c.className='close-btn'+(active?' visible':'');
-if(!active)document.getElementById('stream').src='';
+if(active){document.body.classList.add('debug')}else{document.body.classList.remove('debug');document.getElementById('stream').src=''}
 }
 function toggleDebug(){debugActive?stopDebug():startDebug()}
 async function startDebug(){document.getElementById('stream').src='/debug/stream';updateDebugUI(true)}
@@ -264,7 +417,7 @@ const b=document.getElementById('btn_auto');b.textContent=on?t('btn_auto_on'):t(
 }
 
 // === Hotkey helpers ===
-var _hotkeyVK=0x4C; // 'L'
+var _hotkeyVK=0x4C;
 function vkName(vk){
 if(vk>=0x41&&vk<=0x5A)return String.fromCharCode(vk);
 if(vk>=0x30&&vk<=0x39)return String.fromCharCode(vk);
@@ -287,26 +440,26 @@ e.preventDefault();e.stopPropagation();
 _hotkeyVK=e.keyCode;
 this.value=vkName(e.keyCode);
 });
+document.getElementById('hotkey_key').addEventListener('click',function(){this.select()});
+function onHotkeyCfgChange(){}
 
-// Clear selection on click to help user understand it captures a key
-document.getElementById('hotkey_key').addEventListener('click',function(){
-this.select();
-});
-
-function onHotkeyCfgChange(){/* modifiers tracked via checkboxes directly */}
-
+// === Status poll ===
 setInterval(async()=>{
 try{const r=await fetch('/api/status');const s=await r.json();
-const f=document.getElementById('st_face');f.textContent=t('st_face')+': '+(s.face==='true'?'YES':'no');f.className='item'+(s.face==='true'?' true':'');
-const e=document.getElementById('st_eyes');e.textContent=t('st_eyes')+': '+(s.eyes==='true'?'YES':'no');e.className='item'+(s.eyes==='true'?' true':'');
-document.getElementById('st_state').innerHTML=t('st_state')+': <b>'+t(s.state)+'</b>';
-const idle=s.idle_sec||0;
-document.getElementById('st_idle').innerHTML=t('st_idle')+': <b>'+idle+'s</b>';
-document.getElementById('st_no_face').textContent=t('st_no_face')+': '+s.no_face_count;
-document.getElementById('st_no_eyes').textContent=t('st_no_eyes')+': '+s.no_eyes_count;
-	const hk=document.getElementById('st_hotkey');if(hk){const hv=s.hotkey||'';hk.textContent='Hotkey: '+(hv==='ok'?'OK':hv);hk.className='item'+(hv==='ok'?' true':(hv&&hv!=='disabled'?' warn':''));}
+updateSt('st_face',t('st_face'),s.face==='true',s.face==='true'?'YES':'no');
+updateSt('st_eyes',t('st_eyes'),s.eyes==='true',s.eyes==='true'?'YES':'no');
+updateSt('st_state',t('st_state'),false,t(s.state));
+updateSt('st_idle',t('st_idle'),false,(s.idle_sec||0)+'s');
+const hk=document.getElementById('st_hotkey');
+if(hk){const hv=s.hotkey||'';const ok=hv==='ok';hk.innerHTML='Hotkey<span class="st-dot"></span>';hk.className='si'+(ok?' on':(hv&&hv!=='disabled'?' warn':''));hk.title=ok?'OK':hv}
 }catch(e){}
 },2000);
+
+function updateSt(id,label,on,val){
+const el=document.getElementById(id);if(!el)return;
+el.innerHTML=label+'<b>'+val+'</b><span class="st-dot"></span>';
+el.className='si'+(on?' on':'');
+}
 load();
 </script>
 </body>

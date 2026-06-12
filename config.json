@@ -9,7 +9,7 @@
     "score_threshold": 0.5,
     "nms_threshold": 0.3,
     "min_eye_dist": 15,
-    "min_face_size": 40
+    "min_face_size": 80
   },
   "timing": {
     "active_timeout_sec": 30,
