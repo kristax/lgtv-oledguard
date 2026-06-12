@@ -12,7 +12,7 @@
     "min_face_size": 40
   },
   "timing": {
-    "active_timeout_sec": 120,
+    "active_timeout_sec": 30,
     "passive_interval_sec": 2,
     "no_face_cycles": 5,
     "no_eyes_cycles": 15,

@@ -154,6 +154,13 @@ func main() {
 			}
 
 			if passive && webcam != nil {
+				if idle < int64(cfg.Timing.ActiveTimeoutSec) {
+					infoLogger.Println("user active - camera off")
+					webcam.Close()
+					webcam = nil
+					passive = false
+					continue
+				}
 				if warmup > 0 {
 					dummy := gocv.NewMat()
 					webcam.Read(&dummy)
@@ -166,8 +173,14 @@ func main() {
 				face, eyes := detectPresence(webcam, cfg)
 
 				if face && eyes {
+					infoLogger.Println("user present - camera off")
+					lastActivity.Store(time.Now().Unix())
+					webcam.Close()
+					webcam = nil
+					passive = false
 					noFaceC = 0
 					noEyesC = 0
+					continue
 				} else if face && !eyes {
 					noFaceC = 0
 					noEyesC++
