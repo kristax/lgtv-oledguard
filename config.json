@@ -21,6 +21,9 @@
   "system": {
     "auto_start": true,
     "server_port": 19999,
-    "lg_tv_cmd": "LGTVcli.exe"
+    "lg_tv_cmd": "LGTVcli.exe",
+    "hotkey_enabled": true,
+    "hotkey_modifiers": 2,
+    "hotkey_key_code": 76
   }
 }

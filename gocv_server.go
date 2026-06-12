@@ -31,7 +31,8 @@ var (
 		state       string
 		noFaceCount int
 		noEyesCount int
-		idleSec     int64
+		idleSec      int64
+		hotkeyStatus string
 	}
 )
 
@@ -81,6 +82,7 @@ func startHTTPServer(cfg Config) *http.Server {
 				http.Error(w, err.Error(), 500)
 				return
 			}
+			ReapplyHotkey()
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 			return
 		}
@@ -120,6 +122,7 @@ func startHTTPServer(cfg Config) *http.Server {
 			"no_face_count": status.noFaceCount,
 			"no_eyes_count": status.noEyesCount,
 			"idle_sec":      status.idleSec,
+			"hotkey":        status.hotkeyStatus,
 		})
 	})
 
@@ -285,5 +288,11 @@ func SaveConfigFile(cfg Config) error {
 		return err
 	}
 	return os.Rename(tmpPath, configPath)
+}
+
+func setHotkeyStatus(s string) {
+	status.mu.Lock()
+	status.hotkeyStatus = s
+	status.mu.Unlock()
 }
 

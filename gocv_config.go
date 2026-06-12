@@ -30,9 +30,12 @@ type TimingConfig struct {
 }
 
 type SystemConfig struct {
-	AutoStart  bool   `json:"auto_start"`
-	ServerPort int    `json:"server_port"`
-	LGTVCmd    string `json:"lg_tv_cmd"`
+	AutoStart       bool   `json:"auto_start"`
+	ServerPort      int    `json:"server_port"`
+	LGTVCmd         string `json:"lg_tv_cmd"`
+	HotkeyEnabled   bool   `json:"hotkey_enabled"`
+	HotkeyModifiers int    `json:"hotkey_modifiers"` // Ctrl=2, Alt=1, Shift=4, Win=8
+	HotkeyKeyCode   int    `json:"hotkey_key_code"`  // 'L' = 0x4C
 }
 
 type Config struct {
@@ -64,9 +67,12 @@ func DefaultConfig() Config {
 			CameraWarmupFrames: 5,
 		},
 		System: SystemConfig{
-			AutoStart:  false,
-			ServerPort: 19999,
-			LGTVCmd:    "LGTVcli.exe",
+			AutoStart:       false,
+			ServerPort:      19999,
+			LGTVCmd:         "LGTVcli.exe",
+			HotkeyEnabled:   true,
+			HotkeyModifiers: 2,     // MOD_CONTROL
+			HotkeyKeyCode:   0x4C,  // 'L'
 		},
 	}
 }

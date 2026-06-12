@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -80,6 +80,29 @@ nav .btn-bar{flex-shrink:0;padding:10px 20px 16px 20px;background:#16213e;border
   <label><span data-t="lbl_lgtv_cmd"></span><span class="desc" data-t="desc_lgtv_cmd"></span></label>
   <input type="text" id="lg_tv_cmd" value="LGTVcli.exe">
 
+  <label><span data-t="lbl_hotkey"></span><span class="desc" data-t="desc_hotkey"></span></label>
+  <div style="display:flex;align-items:center;gap:6px;margin:4px 0">
+    <input type="checkbox" id="hotkey_enabled" style="width:auto;margin:0" onchange="onHotkeyCfgChange()">
+    <span data-t="lbl_hotkey_enabled" style="font-size:13px;color:#ccc"></span>
+  </div>
+  <label style="margin-top:8px"><span data-t="lbl_hotkey_mods"></span></label>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin:4px 0">
+    <label style="display:flex;align-items:center;gap:3px;font-size:13px;color:#ccc;margin:0;cursor:pointer">
+      <input type="checkbox" id="hk_ctrl" style="width:auto;margin:0" onchange="onHotkeyCfgChange()"> Ctrl
+    </label>
+    <label style="display:flex;align-items:center;gap:3px;font-size:13px;color:#ccc;margin:0;cursor:pointer">
+      <input type="checkbox" id="hk_alt" style="width:auto;margin:0" onchange="onHotkeyCfgChange()"> Alt
+    </label>
+    <label style="display:flex;align-items:center;gap:3px;font-size:13px;color:#ccc;margin:0;cursor:pointer">
+      <input type="checkbox" id="hk_shift" style="width:auto;margin:0" onchange="onHotkeyCfgChange()"> Shift
+    </label>
+    <label style="display:flex;align-items:center;gap:3px;font-size:13px;color:#ccc;margin:0;cursor:pointer">
+      <input type="checkbox" id="hk_win" style="width:auto;margin:0" onchange="onHotkeyCfgChange()"> Win
+    </label>
+  </div>
+  <label style="margin-top:6px"><span data-t="lbl_hotkey_key"></span></label>
+  <input type="text" id="hotkey_key" readonly placeholder="Click and press a key" style="cursor:pointer;text-align:center">
+
   </div><div class="btn-bar"><button class="action btn-save" onclick="saveConfig()" data-t="btn_save"></button>
   <button class="action btn-off" onclick="screenOff()" data-t="btn_screen_off"></button>
   <button class="action btn-auto" id="btn_auto" onclick="toggleAutoStart()"></button>
@@ -98,6 +121,7 @@ nav .btn-bar{flex-shrink:0;padding:10px 20px 16px 20px;background:#16213e;border
   <span class="item" id="st_idle"></span>
   <span class="item" id="st_no_face"></span>
   <span class="item" id="st_no_eyes"></span>
+  <span class="item" id="st_hotkey"></span>
 </div>
 <script>
 // === i18n ===
@@ -118,6 +142,8 @@ lbl_no_face_cycles:"无人脸周期数",desc_no_face_cycles:"连续多少次检�
 lbl_no_eyes_cycles:"无眼睛周期数",desc_no_eyes_cycles:"连续多少次检测到人脸但无眼睛后判定为\"未看屏幕\"（如看手机），触发关屏",
 lbl_server_port:"HTTP 端口",desc_server_port:"Web 管理界面的监听端口。修改后需重启程序生效",
 lbl_lgtv_cmd:"LGTV 命令",desc_lgtv_cmd:"控制显示器的命令行工具路径。程序通过它来开关屏幕",
+lbl_hotkey:"快捷键",desc_hotkey:"全局快捷键，快速关闭屏幕。息屏后 2 秒内不会响应键鼠唤醒",
+lbl_hotkey_enabled:"启用快捷键",lbl_hotkey_mods:"修饰键",lbl_hotkey_key:"按键",
 btn_save:"保存配置",btn_screen_off:"立即关闭屏幕",
 btn_auto_on:"开机自启: 开",btn_auto_off:"开机自启: 关",
 btn_debug_start:"开启调试预览",btn_debug_stop:"关闭调试预览",
@@ -141,6 +167,8 @@ lbl_no_face_cycles:"No-Face Cycles",desc_no_face_cycles:"Consecutive no-face det
 lbl_no_eyes_cycles:"No-Eyes Cycles",desc_no_eyes_cycles:"Consecutive face-but-no-eyes detections to confirm not watching. × interval = actual seconds",
 lbl_server_port:"HTTP Port",desc_server_port:"Web management interface port. Requires restart to apply",
 lbl_lgtv_cmd:"LGTV Command",desc_lgtv_cmd:"Display control CLI tool path. Used to turn screen on/off",
+lbl_hotkey:"Hotkey",desc_hotkey:"Global shortcut to turn off screen. 2s wake guard after off",
+lbl_hotkey_enabled:"Enable Hotkey",lbl_hotkey_mods:"Modifiers",lbl_hotkey_key:"Key",
 btn_save:"Save Config",btn_screen_off:"Turn Off Screen Now",
 btn_auto_on:"Auto-Start: ON",btn_auto_off:"Auto-Start: OFF",
 btn_debug_start:"Start Debug",btn_debug_stop:"Stop Debug",
@@ -191,6 +219,12 @@ document.getElementById('no_eyes_cycles').value=tim.no_eyes_cycles||15;updateVal
 const sys=c.system||{};
 document.getElementById('server_port').value=sys.server_port||19999;
 document.getElementById('lg_tv_cmd').value=sys.lg_tv_cmd||'LGTVcli.exe';
+document.getElementById('hotkey_enabled').checked=sys.hotkey_enabled!==false;
+document.getElementById('hk_ctrl').checked=!!(sys.hotkey_modifiers&2);
+document.getElementById('hk_alt').checked=!!(sys.hotkey_modifiers&1);
+document.getElementById('hk_shift').checked=!!(sys.hotkey_modifiers&4);
+document.getElementById('hk_win').checked=!!(sys.hotkey_modifiers&8);
+document.getElementById('hotkey_key').value=vkName(sys.hotkey_key_code||0x4C);
 updateAutoBtn(sys.auto_start||false);
 try{const ds=await fetch('/debug/status');const dj=await ds.json();if(!dj.active)updateDebugUI(false)}catch(e){updateDebugUI(false)}
 applyLang();
@@ -203,7 +237,7 @@ return{
 camera:{device_id:parseInt(document.getElementById('device_id').value)||0,width:parseInt(document.getElementById('width').value)||1280,height:parseInt(document.getElementById('height').value)||720},
 detection:{model_size:parseInt(document.getElementById('model_size').value)||640,score_threshold:parseFloat(document.getElementById('score_threshold').value)||0.5,nms_threshold:parseFloat(document.getElementById('nms_threshold').value)||0.3,min_eye_dist:parseFloat(document.getElementById('min_eye_dist').value)||15,min_face_size:parseInt(document.getElementById('min_face_size').value)||30},
 timing:{active_timeout_sec:parseInt(document.getElementById('active_timeout_sec').value)||120,passive_interval_sec:parseInt(document.getElementById('passive_interval_sec').value)||2,no_face_cycles:parseInt(document.getElementById('no_face_cycles').value)||5,no_eyes_cycles:parseInt(document.getElementById('no_eyes_cycles').value)||15,camera_warmup_frames:5},
-system:{auto_start:autoOn,server_port:parseInt(document.getElementById('server_port').value)||19999,lg_tv_cmd:document.getElementById('lg_tv_cmd').value||'LGTVcli.exe'}
+system:{auto_start:autoOn,server_port:parseInt(document.getElementById('server_port').value)||19999,lg_tv_cmd:document.getElementById('lg_tv_cmd').value||'LGTVcli.exe',hotkey_enabled:document.getElementById('hotkey_enabled').checked,hotkey_modifiers:hotkeyModifiers(),hotkey_key_code:currentVK()}
 };
 }
 async function saveConfig(){await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(getConfig())});alert(t('btn_save')+' OK')}
@@ -229,6 +263,38 @@ autoOn=on;
 const b=document.getElementById('btn_auto');b.textContent=on?t('btn_auto_on'):t('btn_auto_off');b.className='action btn-auto'+(on?'':' off')
 }
 
+// === Hotkey helpers ===
+var _hotkeyVK=0x4C; // 'L'
+function vkName(vk){
+if(vk>=0x41&&vk<=0x5A)return String.fromCharCode(vk);
+if(vk>=0x30&&vk<=0x39)return String.fromCharCode(vk);
+if(vk>=0x70&&vk<=0x7B)return 'F'+(vk-0x6F);
+var m={0x20:'Space',0x0D:'Enter',0x1B:'Esc',0x09:'Tab',0x2E:'Delete',0x08:'Backspace',0x21:'PageUp',0x22:'PageDown',0x23:'End',0x24:'Home',0x25:'Left',0x26:'Up',0x27:'Right',0x28:'Down',0x2D:'Insert',0x6A:'Num*',0x6B:'Num+',0x6D:'Num-',0x6E:'Num.',0x6F:'Num/',0x90:'NumLock',0x91:'Scroll',0x13:'Pause',0x2C:'PrintScreen',0x5B:'LWin',0x5C:'RWin',0xA0:'LShift',0xA1:'RShift',0xA2:'LCtrl',0xA3:'RCtrl',0xA4:'LAlt',0xA5:'RAlt',0xBC:',',0xBE:'.',0xBF:'/',0xBA:';',0xDB:'[',0xDD:']',0xDC:'\\',0xDE:"'",0xC0:'`',0xBD:'-',0xBB:'='};
+return m[vk]||('VK_0x'+vk.toString(16).toUpperCase());
+}
+function currentVK(){return _hotkeyVK}
+function hotkeyModifiers(){
+var m=0;
+if(document.getElementById('hk_alt').checked)m|=1;
+if(document.getElementById('hk_ctrl').checked)m|=2;
+if(document.getElementById('hk_shift').checked)m|=4;
+if(document.getElementById('hk_win').checked)m|=8;
+return m;
+}
+
+document.getElementById('hotkey_key').addEventListener('keydown',function(e){
+e.preventDefault();e.stopPropagation();
+_hotkeyVK=e.keyCode;
+this.value=vkName(e.keyCode);
+});
+
+// Clear selection on click to help user understand it captures a key
+document.getElementById('hotkey_key').addEventListener('click',function(){
+this.select();
+});
+
+function onHotkeyCfgChange(){/* modifiers tracked via checkboxes directly */}
+
 setInterval(async()=>{
 try{const r=await fetch('/api/status');const s=await r.json();
 const f=document.getElementById('st_face');f.textContent=t('st_face')+': '+(s.face==='true'?'YES':'no');f.className='item'+(s.face==='true'?' true':'');
@@ -238,13 +304,10 @@ const idle=s.idle_sec||0;
 document.getElementById('st_idle').innerHTML=t('st_idle')+': <b>'+idle+'s</b>';
 document.getElementById('st_no_face').textContent=t('st_no_face')+': '+s.no_face_count;
 document.getElementById('st_no_eyes').textContent=t('st_no_eyes')+': '+s.no_eyes_count;
+	const hk=document.getElementById('st_hotkey');if(hk){const hv=s.hotkey||'';hk.textContent='Hotkey: '+(hv==='ok'?'OK':hv);hk.className='item'+(hv==='ok'?' true':(hv&&hv!=='disabled'?' warn':''));}
 }catch(e){}
 },2000);
 load();
 </script>
 </body>
 </html>
-
-
-
-

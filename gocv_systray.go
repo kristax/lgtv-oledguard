@@ -9,9 +9,11 @@ import (
 )
 
 const (
-	WM_TRAYICON = 0x0400 + 1
-	WM_COMMAND  = 0x0111
-	WM_DESTROY  = 0x0002
+	WM_TRAYICON       = 0x0400 + 1
+	WM_COMMAND        = 0x0111
+	WM_DESTROY        = 0x0002
+	WM_HOTKEY         = 0x0312
+	WM_REAPPLY_HOTKEY = 0x0400 + 2
 
 	NIM_ADD    = 0
 	NIM_DELETE = 2
@@ -23,6 +25,14 @@ const (
 	IDM_OPEN   = 1001
 	IDM_SCROFF = 1002
 	IDM_EXIT   = 1003
+
+	HOTKEY_ID = 1
+
+	MOD_ALT      = 0x0001
+	MOD_CONTROL  = 0x0002
+	MOD_SHIFT    = 0x0004
+	MOD_WIN      = 0x0008
+	MOD_NOREPEAT = 0x4000
 
 	CW_USEDEFAULT = 0x80000000
 	SW_HIDE       = 0
@@ -44,9 +54,10 @@ var (
 	shell32  = syscall.NewLazyDLL("shell32.dll")
 	kernel32 = syscall.NewLazyDLL("kernel32.dll")
 
-	nid    NOTIFYICONDATA
-	hwnd   syscall.Handle
-	quitCh = make(chan struct{})
+	nid              NOTIFYICONDATA
+	hwnd             syscall.Handle
+	quitCh           = make(chan struct{})
+	hotkeyRegistered bool
 )
 
 func init() {
@@ -136,6 +147,12 @@ func runTray() {
 
 	infoLogger.Println("tray icon created")
 
+	// Register global hotkey
+	cfg := getConfig()
+	if cfg.System.HotkeyEnabled {
+		registerHotkey(cfg.System.HotkeyModifiers, cfg.System.HotkeyKeyCode)
+	}
+
 	var msg struct {
 		HWnd    syscall.Handle
 		Message uint32
@@ -188,6 +205,46 @@ func hideConsole() {
 	}
 }
 
+func registerHotkey(modifiers, keyCode int) bool {
+	if hwnd == 0 {
+		setHotkeyStatus("error: no window")
+		return false
+	}
+	unregisterHotkey()
+	if keyCode == 0 {
+		setHotkeyStatus("disabled")
+		return false
+	}
+	r, _, _ := user32.NewProc("RegisterHotKey").Call(
+		uintptr(hwnd), HOTKEY_ID, uintptr(modifiers|MOD_NOREPEAT), uintptr(keyCode),
+	)
+	if r == 0 {
+		msg := fmt.Sprintf("error: could not register (mod=0x%x vk=0x%x) - shortcut may be in use", modifiers, keyCode)
+		errLogger.Println(msg)
+		setHotkeyStatus(msg)
+		return false
+	}
+	hotkeyRegistered = true
+	infoLogger.Printf("hotkey registered (mod=0x%x vk=0x%x)", modifiers, keyCode)
+	setHotkeyStatus("ok")
+	return true
+}
+
+func unregisterHotkey() {
+	if !hotkeyRegistered || hwnd == 0 {
+		return
+	}
+	user32.NewProc("UnregisterHotKey").Call(uintptr(hwnd), HOTKEY_ID)
+	hotkeyRegistered = false
+	setHotkeyStatus("disabled")
+}
+
+func ReapplyHotkey() {
+	if hwnd != 0 {
+		user32.NewProc("PostMessageW").Call(uintptr(hwnd), WM_REAPPLY_HOTKEY, 0, 0)
+	}
+}
+
 func windowProc(h syscall.Handle, msg uint32, wp uintptr, lp uintptr) uintptr {
 	switch msg {
 	case WM_TRAYICON:
@@ -207,6 +264,21 @@ func windowProc(h syscall.Handle, msg uint32, wp uintptr, lp uintptr) uintptr {
 			requestScreenOff()
 		case IDM_EXIT:
 			user32.NewProc("PostQuitMessage").Call(0)
+		}
+		return 0
+
+	case WM_HOTKEY:
+		if wp == HOTKEY_ID {
+			infoLogger.Println("hotkey pressed - screen off")
+			requestScreenOff()
+		}
+		return 0
+
+	case WM_REAPPLY_HOTKEY:
+		cfg := getConfig()
+		unregisterHotkey()
+		if cfg.System.HotkeyEnabled {
+			registerHotkey(cfg.System.HotkeyModifiers, cfg.System.HotkeyKeyCode)
 		}
 		return 0
 

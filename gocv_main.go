@@ -22,6 +22,7 @@ var (
 	eyeBasicCascade   gocv.CascadeClassifier
 	lastActivity      atomic.Int64
 	screenOn          atomic.Bool
+	screenOffTime     atomic.Int64
 )
 
 func main() {
@@ -77,7 +78,7 @@ func main() {
 	go func() {
 		inputhook.HookMouse(func(x int64, y int64, event int, data uint64) {
 			lastActivity.Store(time.Now().Unix())
-			if !screenOn.Load() {
+			if !screenOn.Load() && time.Now().Unix()-screenOffTime.Load() >= 2 {
 				infoLogger.Println("mouse wake")
 				exec.Command(cfg.System.LGTVCmd, "-screenon").Start()
 				screenOn.Store(true)
@@ -87,7 +88,7 @@ func main() {
 	go func() {
 		inputhook.HookKeyboard(func(keyEvent int, keyCode int) {
 			lastActivity.Store(time.Now().Unix())
-			if !screenOn.Load() {
+			if !screenOn.Load() && time.Now().Unix()-screenOffTime.Load() >= 2 {
 				infoLogger.Println("key wake")
 				exec.Command(cfg.System.LGTVCmd, "-screenon").Start()
 				screenOn.Store(true)
@@ -116,6 +117,7 @@ func main() {
 					}
 					exec.Command(cfg.System.LGTVCmd, "-screenoff").Start()
 					screenOn.Store(false)
+					screenOffTime.Store(time.Now().Unix())
 					noFaceC = 0
 					noEyesC = 0
 				}
@@ -173,6 +175,7 @@ func main() {
 						infoLogger.Println("no eyes - screen off")
 						exec.Command(cfg.System.LGTVCmd, "-screenoff").Start()
 						screenOn.Store(false)
+						screenOffTime.Store(time.Now().Unix())
 						noEyesC = 0
 					}
 				} else {
@@ -182,6 +185,7 @@ func main() {
 						infoLogger.Println("no face - screen off")
 						exec.Command(cfg.System.LGTVCmd, "-screenoff").Start()
 						screenOn.Store(false)
+						screenOffTime.Store(time.Now().Unix())
 						noFaceC = 0
 					}
 				}
